@@ -1,6 +1,7 @@
-import { app, BrowserWindow, Menu, Tray, clipboard, ipcMain, nativeImage, screen, systemPreferences } from 'electron';
+import { app, BrowserWindow, Menu, Tray, clipboard, ipcMain, nativeImage, nativeTheme, screen, systemPreferences } from 'electron';
 import path from 'node:path';
 import { ask, hasApiKey } from './ai.js';
+import { addCard, getDecks } from './anki.js';
 import { onDoubleCommand } from './hotkey.js';
 import { loadSettings, saveSettings } from './settings.js';
 
@@ -62,30 +63,33 @@ function toggleLauncher() {
 
 // --- Settings window ---
 
+function showSettings() {
+  app.show();
+  settingsWindow.show();
+  app.focus({ steal: true });
+}
+
 function openSettings() {
-  if (settingsWindow) return settingsWindow.focus();
+  if (settingsWindow) return showSettings();
 
   settingsWindow = new BrowserWindow({
-    width: 420,
-    height: 700,
+    width: 760,
+    height: 600,
     useContentSize: true,
-    title: 'Quick Language Settings',
+    title: 'QuickTranslate Settings',
     show: false,
     resizable: false,
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1e20' : '#f5f5f7',
     webPreferences: { preload },
-  });
-  settingsWindow.loadFile(page('settings'));
-  settingsWindow.once('ready-to-show', () => {
-    app.show();
-    settingsWindow.show();
-    app.focus({ steal: true });
   });
   settingsWindow.on('closed', () => {
     settingsWindow = null;
   });
+  // Show once the page has loaded. ('ready-to-show' never fires when the app starts in the background.)
+  settingsWindow.loadFile(page('settings')).then(showSettings);
 }
 
 // --- Menu bar icon and app menu ---
@@ -93,7 +97,7 @@ function openSettings() {
 function createTray() {
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle('文A');
-  tray.setToolTip('Quick Language');
+  tray.setToolTip('QuickTranslate');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open (⌘⌘)', click: showLauncher },
@@ -133,14 +137,47 @@ function startHotkey() {
   }, 2000);
 }
 
+// 'system', 'light' or 'dark'. Changes the colors of every window right away.
+function applyTheme(settings) {
+  nativeTheme.themeSource = settings.theme;
+}
+
 // --- Messages from the windows (see src/preload.cjs) ---
 
-ipcMain.handle('settings:get', () => loadSettings());
-ipcMain.handle('settings:save', (_event, settings) => saveSettings(settings));
+// "Open at login" is stored by macOS, not in our settings file.
+// It only works in the built app: with `npm start` it would open a bare Electron.
+ipcMain.handle('settings:get', () => ({
+  ...loadSettings(),
+  openAtLogin: app.getLoginItemSettings().openAtLogin,
+  canOpenAtLogin: app.isPackaged,
+}));
+ipcMain.handle('settings:save', (_event, { openAtLogin, ...changes }) => {
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin });
+  const settings = saveSettings(changes);
+  applyTheme(settings);
+  return settings;
+});
 ipcMain.on('settings:open', openSettings);
 ipcMain.handle('ai:ask', async (_event, mode, text) => {
   try {
     return { output: await ask(mode, text, loadSettings()) };
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+ipcMain.handle('anki:decks', async () => {
+  try {
+    return { decks: await getDecks() };
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+ipcMain.handle('anki:add', async (_event, front, back) => {
+  const { ankiEnabled, ankiDeck } = loadSettings();
+  if (!ankiEnabled || !ankiDeck) return { error: 'Turn on Anki and pick a deck in Settings.' };
+  try {
+    await addCard(ankiDeck, front, back);
+    return { deck: ankiDeck };
   } catch (error) {
     return { error: error.message };
   }
@@ -159,6 +196,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     app.dock?.hide();
+    applyTheme(loadSettings());
     createAppMenu();
     createTray();
     await createLauncher();

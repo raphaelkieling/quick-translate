@@ -152,8 +152,21 @@ svg {
   font-size: 12px;
 }
 
-/* Copy icon on the right of each answer, visible on hover or when selected */
-.copy {
+/* Buttons on the right of each answer, visible on hover or when selected */
+.item-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+}
+
+.list li:hover .item-actions,
+.list li.selected .item-actions,
+.item-actions:has(.done) {
+  opacity: 1;
+}
+
+.item-button {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -163,26 +176,19 @@ svg {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-  opacity: 0;
 }
 
-.copy svg {
+.item-button svg {
   width: 16px;
   height: 16px;
 }
 
-.list li:hover .copy,
-.list li.selected .copy,
-.list li.copied .copy {
-  opacity: 1;
-}
-
-.copy:hover {
+.item-button:hover {
   background: var(--line);
   color: var(--fg);
 }
 
-.list li.copied .copy {
+.item-button.done {
   color: var(--success);
 }
 
@@ -206,26 +212,50 @@ svg {
   cursor: text;
 }
 
-.hint {
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   padding: 6px 18px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 11px;
+}
+
+#hint {
   white-space: pre;
+}
+
+#anki {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--success);
+}
+
+#anki.error {
+  color: var(--error);
 }
 
 /* --- Settings --- */
 
-.settings form,
+.settings form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 28px;
+  padding: 16px 20px 20px;
+}
+
+.settings .column {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
 .settings fieldset {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.settings form {
-  gap: 26px;
-  padding: 16px 20px 20px;
 }
 
 .settings fieldset {
@@ -267,6 +297,48 @@ svg {
   font-weight: normal;
 }
 
+.settings label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: normal;
+}
+
+.settings input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.anki-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.anki-status span::before {
+  content: '●';
+  margin-right: 6px;
+}
+
+.anki-status .on {
+  color: var(--success);
+}
+
+.anki-status .off {
+  color: var(--error);
+}
+
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
 .settings input:focus,
 .settings select:focus {
   outline: 2px solid var(--accent);
@@ -274,6 +346,7 @@ svg {
 }
 
 .actions {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
 }
@@ -287,4 +360,8 @@ svg {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.settings label.checkbox:has(:disabled) {
+  opacity: 0.5;
 }

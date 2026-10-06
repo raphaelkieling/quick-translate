@@ -25,6 +25,7 @@ const direction = (id) => `${shortName(MODES[id].from(settings))} → ${shortNam
 const ICONS = {
   copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   check: '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -34,8 +35,12 @@ let settings = {};
 let step = 'pick'; // first 'pick' a mode, then 'ask'
 let mode = 'translate'; // highlighted mode while picking, chosen mode while asking
 let status = null; // { text, error }
+let anki = null; // result of the last "add to Anki": { text, error }
+let question = ''; // the text that was asked
+let answerMode = ''; // the mode of the answer on screen (Tab can change `mode` afterwards)
 let summary = '';
 let items = [];
+let added = new Set(); // items already added to Anki
 let selected = -1; // highlighted item, -1 for none
 let copied = -1; // item that was just copied
 let requestId = 0; // used to ignore answers to outdated requests
@@ -58,15 +63,40 @@ function listItem(text, note, className, onClick, aside) {
   return li;
 }
 
-function copyButton(isCopied) {
-  const button = el('span', 'copy');
-  button.innerHTML = isCopied ? `${ICONS.check}Copied` : ICONS.copy;
-  button.title = 'Copy (↵)';
+// Only translations become Anki cards, and only when Anki is turned on in Settings.
+const canAddToAnki = () => answerMode === 'translate' && settings.ankiEnabled;
+
+function itemButton(className, html, title, onClick) {
+  const button = el('span', `item-button ${className}`);
+  button.innerHTML = html;
+  button.title = title;
+  button.onclick = (e) => {
+    e.stopPropagation();
+    onClick();
+  };
   return button;
+}
+
+function itemActions(i) {
+  const actions = el('div', 'item-actions');
+  if (canAddToAnki()) {
+    const isAdded = added.has(i);
+    actions.append(
+      itemButton(isAdded ? 'done' : '', isAdded ? `${ICONS.check}Anki` : `${ICONS.plus}Anki`, 'Add to Anki (⇧↵)', () =>
+        addItemToAnki(i),
+      ),
+    );
+  }
+  const isCopied = i === copied;
+  actions.append(
+    itemButton(isCopied ? 'done' : '', isCopied ? `${ICONS.check}Copied` : ICONS.copy, 'Copy (↵)', () => copyItem(i)),
+  );
+  return actions;
 }
 
 function hint() {
   if (step === 'pick') return '↑↓ choose   ↵ select   esc close';
+  if (selected >= 0 && canAddToAnki()) return '↑↓ select   ↵ copy   ⇧↵ add to Anki   esc close';
   if (selected >= 0) return '↑↓ select   ↵ copy   ⇥ switch mode   esc close';
   return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';
 }
@@ -102,13 +132,15 @@ function render() {
   $('items').hidden = picking || items.length === 0;
   $('items').replaceChildren(
     ...items.map((item, i) => {
-      const className = [i === selected && 'selected', i === copied && 'copied'].filter(Boolean).join(' ');
-      return listItem(item.text, item.note, className, () => copyItem(i), copyButton(i === copied));
+      return listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
     }),
   );
   $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
 
   $('hint').textContent = hint();
+  $('anki').hidden = picking || !anki;
+  $('anki').textContent = anki?.text ?? '';
+  $('anki').className = anki?.error ? 'error' : '';
 }
 
 // --- Actions ---
@@ -118,6 +150,7 @@ function reset(newSettings) {
   step = 'pick';
   mode = settings.defaultMode;
   status = null;
+  anki = null;
   summary = '';
   items = [];
   selected = -1;
@@ -138,6 +171,7 @@ function chooseMode(id) {
 function backToModes() {
   step = 'pick';
   status = null;
+  anki = null;
   summary = '';
   items = [];
   selected = -1;
@@ -163,6 +197,7 @@ async function submit() {
 
   const id = ++requestId;
   status = { text: 'Thinking…' };
+  anki = null;
   summary = '';
   items = [];
   selected = -1;
@@ -175,9 +210,30 @@ async function submit() {
     status = { text: error, error: true };
   } else {
     status = null;
+    question = text;
+    answerMode = mode;
     summary = output.summary;
     items = output.items;
+    added = new Set();
     selected = items.length ? 0 : -1;
+  }
+  render();
+}
+
+// Front: what you typed. Back: the phrase you picked. Anki also creates the reversed card.
+async function addItemToAnki(i) {
+  if (!canAddToAnki() || added.has(i)) return;
+  const id = requestId;
+  selected = i;
+  render();
+
+  const result = await window.api.addToAnki(question, items[i].text);
+  if (id !== requestId) return;
+  if (result.error) {
+    anki = { text: `Anki: ${result.error}`, error: true };
+  } else {
+    added.add(i);
+    anki = { text: `Added to Anki (${result.deck})` };
   }
   render();
 }
@@ -205,10 +261,11 @@ function onPickKey(key) {
   return true;
 }
 
-function onAskKey(key) {
+function onAskKey(key, shiftKey) {
   if (key === 'Tab') nextMode(1);
   else if (key === 'ArrowDown' && items.length) selectItem(selected + 1);
   else if (key === 'ArrowUp' && items.length) selectItem(selected - 1);
+  else if (key === 'Enter' && shiftKey && selected >= 0) addItemToAnki(selected);
   else if (key === 'Enter' && selected >= 0) copyItem(selected);
   else if (key === 'Enter') submit();
   else if (key === 'Backspace' && input.value === '') backToModes();
@@ -219,7 +276,7 @@ function onAskKey(key) {
 document.addEventListener('keydown', (e) => {
   if (e.isComposing) return;
   if (e.key === 'Escape') return window.api.hide();
-  const handled = step === 'pick' ? onPickKey(e.key) : onAskKey(e.key);
+  const handled = step === 'pick' ? onPickKey(e.key) : onAskKey(e.key, e.shiftKey);
   if (handled) e.preventDefault();
 });
 

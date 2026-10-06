@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('api', {
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   openSettings: () => ipcRenderer.send('settings:open'),
   ask: (mode, text) => ipcRenderer.invoke('ai:ask', mode, text),
+  getAnkiDecks: () => ipcRenderer.invoke('anki:decks'),
+  addToAnki: (front, back) => ipcRenderer.invoke('anki:add', front, back),
   copy: (text) => ipcRenderer.send('clipboard:write', text),
   hide: () => ipcRenderer.send('launcher:hide'),
   resize: (height) => ipcRenderer.send('launcher:resize', height),

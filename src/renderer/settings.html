@@ -3,56 +3,92 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
-    <title>Quick Language Settings</title>
+    <title>QuickTranslate Settings</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body class="settings">
     <form id="form">
-      <fieldset>
-        <legend>Languages</legend>
-        <label>
-          Main language
-          <small>Your native language.</small>
-          <input name="mainLanguage" list="languages" required />
-        </label>
-        <label>
-          Second language
-          <small>The language you want to sound natural in.</small>
-          <input name="secondLanguage" list="languages" required />
-        </label>
-        <label>
-          Start in mode
-          <select name="defaultMode">
-            <option value="translate">Translate: main → second</option>
-            <option value="explain">Explain: second → main</option>
-          </select>
-        </label>
-      </fieldset>
+      <div class="column">
+        <fieldset>
+          <legend>General</legend>
+          <label>
+            Theme
+            <select name="theme">
+              <option value="system">Same as macOS</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input name="openAtLogin" type="checkbox" />
+            Open at login
+          </label>
+          <label>
+            Start in mode
+            <select name="defaultMode">
+              <option value="translate">Translate: main → second</option>
+              <option value="explain">Explain: second → main</option>
+            </select>
+          </label>
+        </fieldset>
 
-      <fieldset>
-        <legend>AI</legend>
-        <label>
-          OpenAI API key
-          <input name="openaiApiKey" type="password" placeholder="sk-…" />
-        </label>
-        <label>
-          Claude API key
-          <input name="anthropicApiKey" type="password" placeholder="sk-ant-…" />
-        </label>
-        <label>
-          Gemini API key
-          <input name="googleApiKey" type="password" placeholder="AIza…" />
-        </label>
-        <label>
-          Use
-          <small>Only this one needs a key.</small>
-          <select name="provider">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Claude</option>
-            <option value="google">Gemini</option>
-          </select>
-        </label>
-      </fieldset>
+        <fieldset>
+          <legend>Languages</legend>
+          <label>
+            Main language
+            <small>Your native language.</small>
+            <input name="mainLanguage" list="languages" required />
+          </label>
+          <label>
+            Second language
+            <small>The language you want to sound natural in.</small>
+            <input name="secondLanguage" list="languages" required />
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="column">
+        <fieldset>
+          <legend>AI</legend>
+          <label>
+            OpenAI API key
+            <input name="openaiApiKey" type="password" placeholder="sk-…" />
+          </label>
+          <label>
+            Claude API key
+            <input name="anthropicApiKey" type="password" placeholder="sk-ant-…" />
+          </label>
+          <label>
+            Gemini API key
+            <input name="googleApiKey" type="password" placeholder="AIza…" />
+          </label>
+          <label>
+            Use
+            <small>Only this one needs a key.</small>
+            <select name="provider">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Claude</option>
+              <option value="google">Gemini</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Anki</legend>
+          <label class="checkbox">
+            <input name="ankiEnabled" type="checkbox" />
+            Add translations to Anki with ⇧↵
+          </label>
+          <div class="anki-status">
+            <span id="anki-status">Checking…</span>
+            <button id="anki-refresh" type="button" class="link">Check again</button>
+          </div>
+          <label>
+            Deck
+            <select name="ankiDeck"></select>
+          </label>
+        </fieldset>
+      </div>
 
       <div class="actions">
         <button type="submit">Save</button>

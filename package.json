@@ -1,12 +1,30 @@
 {
-  "name": "quick-language",
+  "name": "quicktranslate",
+  "productName": "QuickTranslate",
   "version": "0.1.0",
-  "description": "A Spotlight-like launcher to understand and phrase things in another language, powered by OpenAI.",
+  "description": "A Spotlight-like launcher to understand and phrase things in another language, powered by AI.",
   "main": "src/main.js",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --mac --dir"
+  },
+  "build": {
+    "appId": "com.quicktranslate.app",
+    "npmRebuild": false,
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dir",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    }
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.73",
@@ -17,9 +35,11 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "electron": "^44.5.1"
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
   },
   "allowScripts": {
-    "uiohook-napi@1.5.5": true
+    "uiohook-napi@1.5.5": true,
+    "electron-winstaller": false
   }
 }
