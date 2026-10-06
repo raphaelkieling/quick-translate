@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+    <title>Quick Language Settings</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="settings">
+    <form id="form">
+      <fieldset>
+        <legend>Languages</legend>
+        <label>
+          Main language
+          <small>Your native language.</small>
+          <input name="mainLanguage" list="languages" required />
+        </label>
+        <label>
+          Second language
+          <small>The language you want to sound natural in.</small>
+          <input name="secondLanguage" list="languages" required />
+        </label>
+        <label>
+          Start in mode
+          <select name="defaultMode">
+            <option value="translate">Translate: main → second</option>
+            <option value="explain">Explain: second → main</option>
+          </select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>AI</legend>
+        <label>
+          OpenAI API key
+          <input name="openaiApiKey" type="password" placeholder="sk-…" />
+        </label>
+        <label>
+          Claude API key
+          <input name="anthropicApiKey" type="password" placeholder="sk-ant-…" />
+        </label>
+        <label>
+          Gemini API key
+          <input name="googleApiKey" type="password" placeholder="AIza…" />
+        </label>
+        <label>
+          Use
+          <small>Only this one needs a key.</small>
+          <select name="provider">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Claude</option>
+            <option value="google">Gemini</option>
+          </select>
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit">Save</button>
+      </div>
+    </form>
+
+    <!-- Suggestions only: any language name works. -->
+    <datalist id="languages">
+      <option value="English"></option>
+      <option value="Portuguese (Brazil)"></option>
+      <option value="Portuguese (Portugal)"></option>
+      <option value="Spanish"></option>
+      <option value="French"></option>
+      <option value="German"></option>
+      <option value="Italian"></option>
+      <option value="Dutch"></option>
+      <option value="Japanese"></option>
+      <option value="Korean"></option>
+      <option value="Chinese (Simplified)"></option>
+    </datalist>
+    <script src="settings.js"></script>
+  </body>
+</html>

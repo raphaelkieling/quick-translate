@@ -1,0 +1,25 @@
+{
+  "name": "quick-language",
+  "version": "0.1.0",
+  "description": "A Spotlight-like launcher to understand and phrase things in another language, powered by OpenAI.",
+  "main": "src/main.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.73",
+    "@ai-sdk/google": "^4.0.89",
+    "@ai-sdk/openai": "^4.0.84",
+    "ai": "^7.0.128",
+    "uiohook-napi": "^1.5.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1"
+  },
+  "allowScripts": {
+    "uiohook-napi@1.5.5": true
+  }
+}

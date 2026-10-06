@@ -1,0 +1,290 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f5f5f7;
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --line: rgba(0, 0, 0, 0.08);
+  --field: #ffffff;
+  --accent: #0a84ff;
+  --selected: rgba(10, 132, 255, 0.14);
+  --success: #28a745;
+  --error: #d70015;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e20;
+    --fg: #f5f5f7;
+    --muted: #98989d;
+    --line: rgba(255, 255, 255, 0.1);
+    --field: #2c2c2e;
+    --selected: rgba(10, 132, 255, 0.3);
+    --success: #32d74b;
+    --error: #ff453a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  user-select: none;
+  cursor: default;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* --- Launcher --- */
+
+.launcher {
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 18px;
+}
+
+.bar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 20px;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-button {
+  flex-shrink: 0;
+  display: flex;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-button:hover {
+  background: var(--line);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  border-top: 1px solid var(--line);
+}
+
+#items {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.list .body {
+  flex: 1;
+  min-width: 0;
+}
+
+.list li.selected {
+  background: var(--selected);
+}
+
+.list .text {
+  font-size: 15px;
+}
+
+.list .note {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Mode name on the right of each mode */
+.tag {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Copy icon on the right of each answer, visible on hover or when selected */
+.copy {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+}
+
+.copy svg {
+  width: 16px;
+  height: 16px;
+}
+
+.list li:hover .copy,
+.list li.selected .copy,
+.list li.copied .copy {
+  opacity: 1;
+}
+
+.copy:hover {
+  background: var(--line);
+  color: var(--fg);
+}
+
+.list li.copied .copy {
+  color: var(--success);
+}
+
+#status,
+#summary {
+  margin: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+
+#status {
+  color: var(--muted);
+}
+
+#status.error {
+  color: var(--error);
+}
+
+#summary {
+  user-select: text;
+  cursor: text;
+}
+
+.hint {
+  padding: 6px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: pre;
+}
+
+/* --- Settings --- */
+
+.settings form,
+.settings fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings form {
+  gap: 26px;
+  padding: 16px 20px 20px;
+}
+
+.settings fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings legend {
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.settings small {
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.settings input,
+.settings select {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+  font-weight: normal;
+}
+
+.settings input:focus,
+.settings select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.actions button {
+  padding: 6px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
