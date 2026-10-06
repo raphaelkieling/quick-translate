@@ -22,6 +22,7 @@ function createLauncher() {
     height: 60,
     show: false,
     frame: false,
+    roundedCorners: false, // sharp corners, like the rest of the design
     resizable: false,
     movable: false,
     minimizable: false,
@@ -82,7 +83,7 @@ function openSettings() {
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1e20' : '#f5f5f7',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f0f11' : '#f7f6f1',
     webPreferences: { preload },
   });
   settingsWindow.on('closed', () => {

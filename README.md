@@ -6,6 +6,8 @@
 
 A Spotlight-like launcher for learning a second language. Double-tap **⌘** to open it.
 
+**Website:** [raphaelkieling.github.io/quick-translate](https://raphaelkieling.github.io/quick-translate/)
+
 - **Translate**: say it in your language, get natural ways to say it in the other.
 - **Explain**: paste a word or sentence, get what it means.
 

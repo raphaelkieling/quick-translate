@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuickTranslate: a Spotlight for learning languages</title>
+    <meta
+      name="description"
+      content="A Spotlight-like launcher for learning a second language. Double-tap ⌘, say it in your language, get natural ways to say it in the other."
+    />
+    <link rel="icon" href="icon.png" />
+    <style>
+      /* Same design as the app (src/renderer/style.css), inspired by zed.dev: sharp corners, thin lines, compact */
+      :root {
+        --bg: #f7f6f1;
+        --fg: #16161a;
+        --muted: #6b6a66;
+        --line: #dcdad2;
+        --strong-line: #b9b7ae;
+        --field: #ffffff;
+        --header: #efede6;
+        --accent: #0a84ff;
+        --accent-dark: #0060df;
+        --selected: rgba(10, 132, 255, 0.1);
+        --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+        --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', sans-serif;
+        --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f0f11;
+          --fg: #ededea;
+          --muted: #8f8e89;
+          --line: #2a2a2e;
+          --strong-line: #44444a;
+          --field: #1a1a1d;
+          --header: #151517;
+          --selected: rgba(10, 132, 255, 0.18);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.6 var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* Thin vertical rails framing the content */
+      .frame {
+        max-width: 1080px;
+        margin: 0 auto;
+        border-left: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+      }
+
+      section,
+      nav,
+      footer {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .mono {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      /* Header strip above each section, like the section headers in Settings */
+      .section-title {
+        padding: 6px 20px;
+        border-bottom: 1px solid var(--line);
+        background: var(--header);
+      }
+
+      /* --- Nav --- */
+
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0 0 20px;
+        height: 48px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .brand img {
+        width: 24px;
+        height: 24px;
+      }
+
+      nav .links {
+        display: flex;
+        height: 100%;
+      }
+
+      nav .links a {
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        border-left: 1px solid var(--line);
+        text-decoration: none;
+      }
+
+      nav .links a:hover {
+        background: var(--header);
+        color: var(--fg);
+      }
+
+      /* --- Buttons --- */
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 18px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.15);
+      }
+
+      .button:hover {
+        border-color: var(--accent-dark);
+        background: var(--accent-dark);
+      }
+
+      .button svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+        stroke: none;
+      }
+
+      .button.ghost {
+        border-color: var(--strong-line);
+        background: var(--field);
+        color: var(--fg);
+        box-shadow: none;
+      }
+
+      .button.ghost:hover {
+        border-color: var(--fg);
+      }
+
+      .actions {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      kbd {
+        display: inline-block;
+        min-width: 1.7em;
+        padding: 0 5px;
+        border: 1px solid var(--strong-line);
+        border-bottom-width: 2px;
+        background: var(--field);
+        font: 500 0.85em/1.5 var(--sans);
+        text-align: center;
+        color: var(--fg);
+      }
+
+      /* --- Hero --- */
+
+      .hero {
+        padding: 80px 20px 56px;
+        text-align: center;
+      }
+
+      .hero h1 {
+        margin: 14px auto 18px;
+        max-width: 760px;
+        font: 400 clamp(38px, 6vw, 64px) / 1.05 var(--serif);
+        letter-spacing: -0.02em;
+      }
+
+      .hero p.lead {
+        margin: 0 auto 30px;
+        max-width: 540px;
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .hero .note {
+        margin-top: 14px;
+      }
+
+      /* --- Launcher preview (mirrors src/renderer/launcher.html) --- */
+
+      .stage {
+        padding: 48px 20px;
+        background-image: radial-gradient(var(--line) 1px, transparent 1px);
+        background-size: 16px 16px;
+      }
+
+      .launcher {
+        max-width: 640px;
+        margin: 0 auto;
+        border: 1px solid var(--strong-line);
+        background: var(--field);
+        box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.35);
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: left;
+      }
+
+      .launcher .bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 10px 10px 14px;
+      }
+
+      .launcher .badge {
+        flex-shrink: 0;
+        padding: 3px 7px;
+        background: var(--accent);
+        color: white;
+        font: 600 11px var(--mono);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      .launcher .input {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: 18px;
+      }
+
+      .launcher .caret {
+        display: inline-block;
+        width: 2px;
+        height: 1.1em;
+        margin-left: 1px;
+        vertical-align: -3px;
+        background: var(--accent);
+        animation: blink 1s steps(1) infinite;
+      }
+
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      .launcher .gear {
+        flex-shrink: 0;
+        display: flex;
+        padding: 5px;
+        color: var(--muted);
+      }
+
+      .launcher .gear svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      .launcher .summary {
+        margin: 0;
+        padding: 9px 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .launcher ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .launcher li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 7px 14px 7px 12px;
+        border-left: 2px solid transparent;
+      }
+
+      .launcher li + li {
+        border-top: 1px solid var(--line);
+      }
+
+      .launcher li.selected {
+        border-left-color: var(--accent);
+        background: var(--selected);
+      }
+
+      .launcher .body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .launcher .text {
+        font-size: 14px;
+      }
+
+      .launcher .item-note {
+        margin-top: 1px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .launcher .item-actions {
+        display: flex;
+        gap: 2px;
+      }
+
+      .launcher .item-button {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 5px;
+        color: var(--muted);
+        font: 11px var(--mono);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .launcher .item-button svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .launcher .footer {
+        padding: 5px 14px;
+        border-top: 1px solid var(--line);
+        background: var(--header);
+        color: var(--muted);
+        font: 11px/1.6 var(--mono);
+        letter-spacing: 0.02em;
+        white-space: pre;
+      }
+
+      /* --- Features and steps: cells divided by thin lines --- */
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .cell {
+        padding: 24px 20px 32px;
+        border-right: 1px solid var(--line);
+      }
+
+      .cell:last-child {
+        border-right: 0;
+      }
+
+      .cell h3 {
+        margin: 10px 0 6px;
+        font: 400 24px/1.2 var(--serif);
+      }
+
+      .cell h4 {
+        margin: 10px 0 6px;
+        font-size: 16px;
+      }
+
+      .cell p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .num {
+        color: var(--accent);
+      }
+
+      /* --- CTA + footer --- */
+
+      .cta {
+        padding: 72px 20px;
+        text-align: center;
+      }
+
+      .cta h2 {
+        margin: 0 0 24px;
+        font: 400 clamp(30px, 4.5vw, 44px) / 1.1 var(--serif);
+        letter-spacing: -0.01em;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 8px 20px;
+        background: var(--header);
+      }
+
+      footer a {
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: var(--fg);
+      }
+
+      @media (max-width: 760px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .cell {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .cell:last-child {
+          border-bottom: 0;
+        }
+
+        nav .links a:not(:last-child) {
+          display: none;
+        }
+
+        .launcher .footer {
+          white-space: normal;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <nav>
+        <a class="brand" href="#">
+          <img src="icon.png" alt="" />
+          QuickTranslate
+        </a>
+        <div class="links mono">
+          <a href="#features">Features</a>
+          <a href="#how">How it works</a>
+          <a href="https://github.com/raphaelkieling/quick-translate">GitHub</a>
+        </div>
+      </nav>
+
+      <section class="hero">
+        <div class="mono">Free · Open source · For macOS</div>
+        <h1>Say it in another language without leaving what you're doing.</h1>
+        <p class="lead">
+          A Spotlight-like launcher for learning a second language. Double-tap <kbd>⌘</kbd>, type what you
+          mean, and get natural ways to say it.
+        </p>
+        <div class="actions">
+          <a class="button" href="https://github.com/raphaelkieling/quick-translate/releases/latest">
+            <!-- Apple logo -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M16.37 12.73c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.77-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.28-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.65zM14.1 5.98c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.1 1.76-.96 2.8 1.01.08 2.05-.52 2.68-1.28z"
+              />
+            </svg>
+            Download for macOS
+          </a>
+          <a class="button ghost" href="https://github.com/raphaelkieling/quick-translate">View on GitHub</a>
+        </div>
+        <div class="mono note">Apple Silicon &amp; Intel · Bring your own OpenAI, Claude or Gemini key</div>
+      </section>
+
+      <section class="stage" aria-label="Preview of the launcher">
+        <div class="launcher">
+          <div class="bar">
+            <span class="badge">Portuguese → English</span>
+            <span class="input">Estou morrendo de fome<span class="caret"></span></span>
+            <span class="gear">
+              <!-- Feather "settings" icon (MIT) -->
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                />
+              </svg>
+            </span>
+          </div>
+          <p class="summary">"I'm very hungry", said in an exaggerated, everyday way.</p>
+          <ul>
+            <li class="selected">
+              <div class="body">
+                <div class="text">I'm starving.</div>
+                <div class="item-note">The most natural, casual way to say it.</div>
+              </div>
+              <div class="item-actions">
+                <span class="item-button">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
+                  Anki
+                </span>
+                <span class="item-button">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                </span>
+              </div>
+            </li>
+            <li>
+              <div class="body">
+                <div class="text">I'm famished.</div>
+                <div class="item-note">A bit more formal, still common.</div>
+              </div>
+            </li>
+            <li>
+              <div class="body">
+                <div class="text">I could eat a horse.</div>
+                <div class="item-note">Idiom, playful and very informal.</div>
+              </div>
+            </li>
+          </ul>
+          <div class="footer">↑↓ select   ↵ copy   ⇧↵ add to Anki   esc close</div>
+        </div>
+      </section>
+
+      <div id="features" class="section-title mono">Features</div>
+      <section class="grid">
+        <div class="cell">
+          <div class="mono"><span class="num">01</span> · Translate</div>
+          <h3>Sound like a native</h3>
+          <p>
+            Write in your language and get a few natural ways to say it, each with a note on tone and when to
+            use it. Not a word-for-word translation.
+          </p>
+        </div>
+        <div class="cell">
+          <div class="mono"><span class="num">02</span> · Explain</div>
+          <h3>Understand anything</h3>
+          <p>
+            Paste a word, an idiom or a whole sentence in the language you're learning and get what it really
+            means.
+          </p>
+        </div>
+        <div class="cell">
+          <div class="mono"><span class="num">03</span> · Remember</div>
+          <h3>Straight to Anki</h3>
+          <p>
+            Press <kbd>⇧</kbd><kbd>↵</kbd> to turn any translation into a flashcard through AnkiConnect, so what
+            you look up today sticks tomorrow.
+          </p>
+        </div>
+      </section>
+
+      <div id="how" class="section-title mono">How it works</div>
+      <section class="grid">
+        <div class="cell">
+          <div class="mono num">Step 01</div>
+          <h4>Double-tap <kbd>⌘</kbd></h4>
+          <p>The launcher opens on top of whatever you're doing, just like Spotlight.</p>
+        </div>
+        <div class="cell">
+          <div class="mono num">Step 02</div>
+          <h4>Type and press <kbd>↵</kbd></h4>
+          <p>Use <kbd>⇥</kbd> to switch between Translate and Explain.</p>
+        </div>
+        <div class="cell">
+          <div class="mono num">Step 03</div>
+          <h4>Copy and keep going</h4>
+          <p>Pick an answer, press <kbd>↵</kbd> to copy it, and you're back to work.</p>
+        </div>
+      </section>
+
+      <section class="cta">
+        <h2>Learn the language while you use it.</h2>
+        <a class="button" href="https://github.com/raphaelkieling/quick-translate/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M16.37 12.73c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.77-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.28-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.65zM14.1 5.98c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.1 1.76-.96 2.8 1.01.08 2.05-.52 2.68-1.28z"
+            />
+          </svg>
+          Download for macOS
+        </a>
+      </section>
+
+      <footer class="mono">
+        <span>QuickTranslate</span>
+        <a href="https://github.com/raphaelkieling/quick-translate">github.com/raphaelkieling/quick-translate</a>
+      </footer>
+    </div>
+  </body>
+</html>
