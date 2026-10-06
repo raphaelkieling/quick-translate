@@ -10,6 +10,57 @@ function updateRequired() {
   fields.ankiDeck.required = fields.ankiEnabled.checked;
 }
 
+// --- Second languages: a list with a radio for the one in use ---
+
+const languageList = document.getElementById('second-languages');
+const newLanguage = document.getElementById('new-language');
+
+const secondLanguages = () => [...languageList.querySelectorAll('input')].map((radio) => radio.value);
+
+function renderLanguages(languages, current) {
+  languageList.replaceChildren(
+    ...languages.map((language) => {
+      const item = document.createElement('li');
+      const label = document.createElement('label');
+      const radio = Object.assign(document.createElement('input'), { type: 'radio', name: 'secondLanguage', value: language });
+      radio.checked = language === current;
+      label.append(radio, language);
+      const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'remove', textContent: '×', title: 'Remove' });
+      remove.addEventListener('click', () => removeLanguage(language));
+      item.append(label, remove);
+      return item;
+    }),
+  );
+  // At least one language: when the list is empty, the "Add" field must be filled.
+  newLanguage.required = languages.length === 0;
+}
+
+function currentLanguage() {
+  return languageList.querySelector('input:checked')?.value;
+}
+
+function addLanguage() {
+  const language = newLanguage.value.trim();
+  newLanguage.value = '';
+  if (!language || secondLanguages().includes(language)) return;
+  renderLanguages([...secondLanguages(), language], currentLanguage() ?? language);
+}
+
+function removeLanguage(language) {
+  const languages = secondLanguages().filter((l) => l !== language);
+  const current = currentLanguage();
+  renderLanguages(languages, current === language ? languages[0] : current);
+}
+
+document.getElementById('add-language').addEventListener('click', addLanguage);
+newLanguage.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault(); // don't save the form
+  addLanguage();
+});
+// Switched from the menu bar icon while this window is open.
+window.api.onSecondLanguage((language) => renderLanguages(secondLanguages(), language));
+
 // Shows whether AnkiConnect answers and fills the deck list.
 async function checkAnki(selectedDeck = fields.ankiDeck.value) {
   const status = document.getElementById('anki-status');
@@ -36,6 +87,7 @@ window.api.getSettings().then((settings) => {
     fields.openAtLogin.disabled = true;
     fields.openAtLogin.parentElement.title = 'Only in the built app (npm run build)';
   }
+  renderLanguages(settings.secondLanguages, settings.secondLanguage);
   updateRequired();
   checkAnki(settings.ankiDeck);
 });
@@ -46,9 +98,12 @@ document.getElementById('anki-refresh').addEventListener('click', () => checkAnk
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  addLanguage(); // typed in "Add a language…" but didn't press Add
   const values = Object.fromEntries([...new FormData(form)].map(([name, value]) => [name, value.trim()]));
   values.ankiEnabled = fields.ankiEnabled.checked;
   values.openAtLogin = fields.openAtLogin.checked;
+  values.secondLanguages = secondLanguages();
+  values.secondLanguage = currentLanguage();
   await window.api.saveSettings(values);
   window.close();
 });

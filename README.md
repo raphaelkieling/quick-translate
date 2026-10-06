@@ -22,14 +22,19 @@ npm start
 
 ```sh
 npm run build
+osascript -e 'quit app "QuickTranslate"'   # a running copy keeps the old version
+rm -rf /Applications/QuickTranslate.app    # mv can't replace an existing app
 mv "dist/mac-arm64/QuickTranslate.app" /Applications/
+open /Applications/QuickTranslate.app
 ```
 
 On Intel Macs the folder is `dist/mac/`.
+
+After each build, macOS sees a new app: turn **Accessibility** off and on again for QuickTranslate (see below), or the double ⌘ stops working.
 
 ## First launch
 
 1. Allow **Accessibility** in System Settings → Privacy & Security (needed for the double ⌘).
 2. Fill in Settings: languages, API key, provider.
 
-Find it in the menu bar as **文A**.
+Find it in the menu bar as **文A**. Click it to switch between your second languages.

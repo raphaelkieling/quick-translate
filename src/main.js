@@ -98,14 +98,35 @@ function createTray() {
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle('文A');
   tray.setToolTip('QuickTranslate');
+  updateTrayMenu();
+}
+
+// Rebuilt whenever the settings change, so the ✓ is on the second language in use.
+function updateTrayMenu() {
+  const { secondLanguages, secondLanguage } = loadSettings();
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open (⌘⌘)', click: showLauncher },
       { label: 'Settings…', click: openSettings },
       { type: 'separator' },
+      { label: 'Second language', enabled: false },
+      ...secondLanguages.map((language) => ({
+        label: language,
+        type: 'radio',
+        checked: language === secondLanguage,
+        click: () => setSecondLanguage(language),
+      })),
+      { type: 'separator' },
       { role: 'quit' },
     ]),
   );
+}
+
+function setSecondLanguage(secondLanguage) {
+  saveSettings({ secondLanguage });
+  updateTrayMenu();
+  // Keep an open Settings window in sync, so saving it doesn't undo the change.
+  settingsWindow?.webContents.send('settings:second-language', secondLanguage);
 }
 
 function createAppMenu() {
@@ -155,6 +176,7 @@ ipcMain.handle('settings:save', (_event, { openAtLogin, ...changes }) => {
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin });
   const settings = saveSettings(changes);
   applyTheme(settings);
+  updateTrayMenu();
   return settings;
 });
 ipcMain.on('settings:open', openSettings);

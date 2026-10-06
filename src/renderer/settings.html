@@ -39,11 +39,15 @@
             <small>Your native language.</small>
             <input name="mainLanguage" list="languages" required />
           </label>
-          <label>
-            Second language
-            <small>The language you want to sound natural in.</small>
-            <input name="secondLanguage" list="languages" required />
-          </label>
+          <div class="field">
+            <span class="field-title">Second languages</span>
+            <small>Switch the one in use here or from the menu bar.</small>
+            <ul id="second-languages"></ul>
+            <div class="add-language">
+              <input id="new-language" list="languages" placeholder="Add a language…" />
+              <button id="add-language" type="button">Add</button>
+            </div>
+          </div>
         </fieldset>
       </div>
 

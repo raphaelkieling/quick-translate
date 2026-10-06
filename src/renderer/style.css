@@ -297,6 +297,91 @@ svg {
   font-weight: normal;
 }
 
+.settings .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings .field-title {
+  font-weight: 600;
+}
+
+#second-languages {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  /* About 3 languages, then it scrolls (the Settings window has a fixed size). */
+  max-height: 94px;
+  overflow-y: auto;
+}
+
+#second-languages:empty {
+  display: none;
+}
+
+#second-languages li {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+}
+
+#second-languages li + li {
+  border-top: 1px solid var(--line);
+}
+
+#second-languages label {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: normal;
+}
+
+#second-languages input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+#second-languages .remove {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#second-languages .remove:hover {
+  color: var(--error);
+}
+
+.add-language {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.add-language input {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-language button {
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .settings label.checkbox {
   flex-direction: row;
   align-items: center;

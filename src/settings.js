@@ -10,7 +10,8 @@ const DEFAULTS = {
   defaultMode: 'translate', // 'translate' or 'explain'
   theme: 'system', // 'system', 'light' or 'dark'
   mainLanguage: 'Portuguese (Brazil)',
-  secondLanguage: 'English',
+  secondLanguages: ['English'], // the languages you are learning (pick them in Settings)
+  secondLanguage: 'English', // the one in use (switch it from the menu bar icon)
   ankiEnabled: false, // create an Anki card for each translation
   ankiDeck: '',
 };
@@ -23,7 +24,10 @@ export function loadSettings() {
   try {
     const { apiKey, ...saved } = JSON.parse(fs.readFileSync(file(), 'utf8'));
     // Older versions only supported OpenAI and saved its key as `apiKey`.
-    return { ...DEFAULTS, openaiApiKey: apiKey ?? '', ...saved };
+    const settings = { ...DEFAULTS, openaiApiKey: apiKey ?? '', ...saved };
+    // Older versions had a single second language: keep it in the list.
+    if (!saved.secondLanguages) settings.secondLanguages = [settings.secondLanguage];
+    return settings;
   } catch {
     return { ...DEFAULTS };
   }

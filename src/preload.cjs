@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('api', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   openSettings: () => ipcRenderer.send('settings:open'),
+  onSecondLanguage: (callback) => ipcRenderer.on('settings:second-language', (_event, language) => callback(language)),
   ask: (mode, text) => ipcRenderer.invoke('ai:ask', mode, text),
   getAnkiDecks: () => ipcRenderer.invoke('anki:decks'),
   addToAnki: (front, back) => ipcRenderer.invoke('anki:add', front, back),
