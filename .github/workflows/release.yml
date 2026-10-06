@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version and changelog
+        id: meta
+        run: node scripts/release.mjs
+
+      - uses: actions/setup-node@v4
+        if: steps.meta.outputs.skip != 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.meta.outputs.skip != 'true'
+        run: npm ci
+
+      - name: Build
+        if: steps.meta.outputs.skip != 'true'
+        run: |
+          npm version ${{ steps.meta.outputs.version }} --no-git-tag-version --allow-same-version
+          npm run build -- --arm64 --x64
+
+      - name: Zip apps
+        if: steps.meta.outputs.skip != 'true'
+        run: |
+          V=${{ steps.meta.outputs.version }}
+          ditto -c -k --keepParent dist/mac-arm64/QuickTranslate.app "QuickTranslate-$V-mac-arm64.zip"
+          ditto -c -k --keepParent dist/mac/QuickTranslate.app "QuickTranslate-$V-mac-x64.zip"
+
+      - name: Create release
+        if: steps.meta.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            --target "$GITHUB_SHA" \
+            --title "QuickTranslate ${{ steps.meta.outputs.tag }}" \
+            --notes-file release-notes.md \
+            QuickTranslate-*.zip

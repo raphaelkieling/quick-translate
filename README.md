@@ -20,6 +20,8 @@ npm start
 
 ## Install
 
+Download the latest zip from [Releases](https://github.com/raphaelkieling/quick-translate/releases) (a new one is built on every push to `main`), or build it yourself:
+
 ```sh
 npm run build
 osascript -e 'quit app "QuickTranslate"'   # a running copy keeps the old version
