@@ -179,6 +179,7 @@ form.addEventListener('submit', async (e) => {
   addLanguage(); // typed in "Add a language…" but didn't press Add
   const values = Object.fromEntries([...new FormData(form)].map(([name, value]) => [name, value.trim()]));
   values.ankiEnabled = fields.ankiEnabled.checked;
+  values.realtimeMode = fields.realtimeMode.checked;
   values.openAtLogin = fields.openAtLogin.checked;
   values.secondLanguages = secondLanguages();
   values.secondLanguage = currentLanguage();

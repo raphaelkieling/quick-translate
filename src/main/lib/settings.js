@@ -7,6 +7,7 @@ export const DEFAULTS = {
   anthropicApiKey: '',
   googleApiKey: '',
   defaultMode: 'translate', // 'translate' or 'explain'
+  realtimeMode: false, // pick the mode from the language you type in (see languageQuestion in src/main/lib/prompts.js)
   theme: 'system', // 'system', 'light' or 'dark'
   mainLanguage: 'Portuguese (Brazil)',
   secondLanguages: ['English'], // the languages you are learning (pick them in Settings)

@@ -30,6 +30,10 @@ let copied = -1; // item that was just copied
 let speaking = -1; // item being read aloud
 let systemVoices = []; // the text to speech voices installed on the Mac
 let requestId = 0; // used to ignore answers to outdated requests
+let decision = null; // Real Time Mode: { text, result, pending } of the last text sent
+let decideTimer = 0;
+let pickedByHand = false; // choosing a mode yourself turns Real Time Mode off until the text is cleared
+let autoPicked = false; // the highlighted mode was picked by Real Time Mode
 
 // --- Rendering ---
 
@@ -103,13 +107,14 @@ function languageRow(lang) {
       listItem(
         direction(id, languageSettings),
         MODES[id].description(languageSettings),
-        lang === language && id === mode ? 'cell selected' : 'cell',
+        lang === language && id === mode ? `cell selected${autoPicked ? ' auto' : ''}` : 'cell',
         () => chooseMode(id, lang),
         el('span', 'tag', MODES[id].label),
         'div',
       ),
     ),
   );
+  row.querySelector('.auto')?.setAttribute('title', 'Picked by Real Time Mode');
   return row;
 }
 
@@ -143,6 +148,7 @@ function render() {
   );
   $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
 
+  $('deciding').hidden = !decision?.pending;
   $('hint').textContent = hint({ step, selected, canAddToAnki: canAddToAnki(), canSpeak: Boolean(voice()) });
   $('anki').hidden = picking || !anki;
   $('anki').textContent = anki?.text ?? '';
@@ -164,6 +170,10 @@ function reset(newSettings) {
   copied = -1;
   stopItem();
   requestId++;
+  clearTimeout(decideTimer);
+  decision = null;
+  pickedByHand = false;
+  autoPicked = false;
   input.value = '';
   render();
   input.focus();
@@ -171,6 +181,7 @@ function reset(newSettings) {
 
 // Clicking a mode asks right away when there is something typed.
 function chooseMode(id, lang) {
+  pickByHand();
   mode = id;
   language = lang;
   render();
@@ -191,6 +202,7 @@ function backToModes() {
 }
 
 function nextMode(offset) {
+  pickByHand();
   const index = MODE_IDS.indexOf(mode) + offset;
   mode = MODE_IDS[(index + MODE_IDS.length) % MODE_IDS.length];
   selected = -1; // so Enter asks again in the new mode
@@ -198,6 +210,7 @@ function nextMode(offset) {
 }
 
 function nextLanguage(offset) {
+  pickByHand();
   const list = languages(settings);
   const index = list.indexOf(language) + offset;
   language = list[(index + list.length) % list.length];
@@ -222,6 +235,14 @@ async function submit() {
   items = [];
   selected = -1;
   render();
+
+  // Pressed ↵ before Real Time Mode answered: wait for it (it's quick).
+  if (realtime()) {
+    clearTimeout(decideTimer);
+    applyDecision(await decide(text));
+    if (id !== requestId) return;
+    render();
+  }
 
   const { output, error } = await window.api.ask(mode, text, language);
   if (id !== requestId) return;
@@ -291,6 +312,55 @@ function copyItem(i) {
   }, 1200);
 }
 
+// --- Real Time Mode: picks the mode and the language from the language you type in ---
+
+const realtime = () => settings.realtimeMode && !pickedByHand;
+
+function pickByHand() {
+  pickedByHand = true;
+  autoPicked = false;
+}
+
+// { mode, language } for the language of the text, or null when it failed or is another language
+// (then you pick it as usual).
+// Asking twice for the same text reuses the first answer.
+function decide(text) {
+  if (decision?.text !== text) {
+    const current = { text, pending: true };
+    current.result = window.api.decide(text).then((response) => {
+      current.pending = false;
+      if (decision === current) render();
+      return response.decision ?? null;
+    });
+    decision = current;
+    render(); // shows the loading icon in the footer
+  }
+  return decision.result;
+}
+
+function applyDecision(result) {
+  if (!result) return;
+  mode = result.mode;
+  language = result.language;
+  autoPicked = true;
+}
+
+// Waits for a pause in the typing, so it doesn't call the AI on every key. A paste goes right away.
+function decideSoon(wait) {
+  clearTimeout(decideTimer);
+  const text = input.value.trim();
+  if (!text) pickedByHand = false;
+  if (!text || !realtime()) return;
+  const run = async () => {
+    const result = await decide(text);
+    if (step !== 'pick' || !realtime() || input.value.trim() !== text) return;
+    applyDecision(result);
+    render();
+  };
+  if (wait) decideTimer = setTimeout(run, wait);
+  else run();
+}
+
 // --- Keyboard and mouse ---
 
 // Each returns true when it handled the key.
@@ -327,9 +397,10 @@ document.addEventListener('keydown', (e) => {
   if (handled) e.preventDefault();
 });
 
-input.addEventListener('input', () => {
+input.addEventListener('input', (e) => {
   // Changing the text shows the modes again, to ask in any of them.
   if (step === 'ask') backToModes();
+  decideSoon(e.inputType === 'insertFromPaste' ? 0 : 300);
 });
 
 $('badge').onclick = () => {

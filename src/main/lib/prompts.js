@@ -61,6 +61,27 @@ Only use **double asterisks** in the items when the user marked something.
 };
 
 /**
+ * Real Time Mode (turn it on in Settings): while you type, a quick decision finds the language
+ * the text is written in, and that picks the mode (see readDecision in src/main/lib/ai.js):
+ *   your main language -> Translate to the second language in use
+ *   a second language  -> Explain it in your main language
+ * Each key of `criteria` is an answer: the language names, or OTHER_LANGUAGE.
+ */
+export const OTHER_LANGUAGE = 'other';
+
+export const languageQuestion = ({ mainLanguage, secondLanguages }) => ({
+  language: {
+    type: 'choice',
+    instructions:
+      'Which language is this text written in? Ignore typos, slang and missing accents. If it mixes languages, pick the one most of it is written in.',
+    criteria: {
+      ...Object.fromEntries([mainLanguage, ...secondLanguages].map((language) => [language, null])),
+      [OTHER_LANGUAGE]: 'None of these languages',
+    },
+  },
+});
+
+/**
  * The shape of every answer. The launcher shows `summary` on top and lists
  * `items` below; selecting an item copies its `text`.
  * If you change this shape, update src/renderer/launcher/index.js too.

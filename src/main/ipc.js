@@ -1,5 +1,5 @@
 import { app, clipboard, ipcMain } from 'electron';
-import { ask } from './lib/ai.js';
+import { ask, decideMode } from './lib/ai.js';
 import { addCardForLanguage, getDecks } from './lib/anki.js';
 import { updateTrayMenu } from './menu.js';
 import { loadSettings, saveSettings } from './store.js';
@@ -42,6 +42,7 @@ export function registerIpc() {
     'ai:ask',
     orError(async (_event, mode, text, language) => ({ output: await ask(mode, text, settingsFor(language)) })),
   );
+  ipcMain.handle('ai:decide', orError(async (_event, text) => ({ decision: await decideMode(text, loadSettings()) })));
 
   ipcMain.handle('anki:decks', orError(async () => ({ decks: await getDecks() })));
   ipcMain.handle(

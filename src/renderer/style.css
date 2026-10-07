@@ -194,6 +194,15 @@ body.launcher::after {
   box-shadow: none;
 }
 
+/* Picked by Real Time Mode */
+#modes .cell.auto .tag {
+  color: var(--accent);
+}
+
+#modes .cell.auto .tag::before {
+  content: '✦ ';
+}
+
 .list .text {
   font-size: 14px;
 }
@@ -314,6 +323,22 @@ body.launcher::after {
 
 #anki.error {
   color: var(--error);
+}
+
+#deciding {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  align-self: center;
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* --- Settings --- */

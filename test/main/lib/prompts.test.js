@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { MODES, answerSchema } from '../../../src/main/lib/prompts.js';
+import { MODES, OTHER_LANGUAGE, answerSchema, languageQuestion } from '../../../src/main/lib/prompts.js';
 
 const settings = { mainLanguage: 'Portuguese (Brazil)', secondLanguage: 'Japanese' };
 
@@ -28,5 +28,13 @@ describe('answerSchema', () => {
 
   it('rejects items without a note', () => {
     assert.equal(answerSchema.safeParse({ summary: '', items: [{ text: 'Hi' }] }).success, false);
+  });
+});
+
+describe('languageQuestion', () => {
+  it('chooses between the main language, the second languages and another one', () => {
+    const { language } = languageQuestion({ ...settings, secondLanguages: ['English', 'Japanese'] });
+    assert.equal(language.type, 'choice');
+    assert.deepEqual(Object.keys(language.criteria), ['Portuguese (Brazil)', 'English', 'Japanese', OTHER_LANGUAGE]);
   });
 });
