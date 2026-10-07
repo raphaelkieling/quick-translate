@@ -1,3 +1,5 @@
+import { guessDeck } from './decks.js';
+
 const form = document.getElementById('form');
 const fields = form.elements;
 const KEY_FIELDS = { openai: 'openaiApiKey', anthropic: 'anthropicApiKey', google: 'googleApiKey' };
@@ -68,12 +70,6 @@ const deckList = document.getElementById('anki-decks');
 let ankiDecks = []; // the decks that exist in Anki (empty while it is closed)
 let chosenDecks = {}; // { language: deck }, also remembers removed languages until the window closes
 
-// For a language without a deck yet: the first deck with the language in its name ("English::Phrases").
-function guessDeck(language) {
-  const name = language.replace(/\s*\(.*\)$/, '').toLowerCase();
-  return ankiDecks.find((deck) => deck.toLowerCase().includes(name)) ?? '';
-}
-
 function renderDecks() {
   for (const { dataset, value } of deckList.querySelectorAll('select')) {
     // An empty select only counts once a deck was chosen, so the guess still runs after Anki answers.
@@ -81,7 +77,7 @@ function renderDecks() {
   }
   deckList.replaceChildren(
     ...secondLanguages().map((language) => {
-      const deck = chosenDecks[language] ?? guessDeck(language);
+      const deck = chosenDecks[language] ?? guessDeck(language, ankiDecks);
       // Keep the chosen deck even when Anki is closed, so saving doesn't lose it.
       const names = [...new Set([...ankiDecks, deck].filter(Boolean))];
       const select = document.createElement('select');

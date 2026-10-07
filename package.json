@@ -3,12 +3,13 @@
   "productName": "QuickTranslate",
   "version": "0.1.0",
   "description": "A Spotlight-like launcher to understand and phrase things in another language, powered by AI.",
-  "main": "src/main.js",
+  "main": "src/main/index.js",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --mac --dir"
+    "build": "electron-builder --mac --dir",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "build": {
     "appId": "com.quicktranslate.app",

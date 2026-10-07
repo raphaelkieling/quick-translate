@@ -50,7 +50,7 @@ Leave the summary empty if there is nothing useful to add.
 /**
  * The shape of every answer. The launcher shows `summary` on top and lists
  * `items` below; selecting an item copies its `text`.
- * If you change this shape, update src/renderer/launcher.js too.
+ * If you change this shape, update src/renderer/launcher/index.js too.
  */
 export const answerSchema = z.object({
   summary: z.string().describe('Short paragraph shown above the list. Can be an empty string.'),

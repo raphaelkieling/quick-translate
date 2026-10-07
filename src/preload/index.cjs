@@ -1,4 +1,4 @@
-// The bridge between the windows (src/renderer) and the main process (src/main.js).
+// The bridge between the windows (src/renderer) and the main process (src/main).
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {

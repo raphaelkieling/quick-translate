@@ -65,7 +65,7 @@ body.launcher {
   background: var(--field);
 }
 
-/* Window border (the launcher window has square corners, see src/main.js) */
+/* Window border (the launcher window has square corners, see src/main/windows.js) */
 body.launcher::after {
   content: '';
   position: fixed;

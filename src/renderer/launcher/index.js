@@ -1,25 +1,4 @@
-// What each mode looks like in the launcher. The prompts are in src/prompts.js.
-const MODES = {
-  translate: {
-    label: 'Translate',
-    from: (s) => s.mainLanguage,
-    to: (s) => s.secondLanguage,
-    description: (s) => `Write in ${s.mainLanguage}, get natural ways to say it in ${s.secondLanguage}`,
-    placeholder: (s) => `What do you want to say? Write in ${s.mainLanguage}…`,
-  },
-  explain: {
-    label: 'Explain',
-    from: (s) => s.secondLanguage,
-    to: (s) => s.mainLanguage,
-    description: (s) => `Write a word or phrase in ${s.secondLanguage}, get what it means in ${s.mainLanguage}`,
-    placeholder: (s) => `A word or phrase in ${s.secondLanguage}…`,
-  },
-};
-const MODE_IDS = Object.keys(MODES);
-
-// "Portuguese (Brazil)" -> "Portuguese", to keep the labels short.
-const shortName = (language = '') => language.replace(/\s*\(.*\)$/, '');
-const direction = (id) => `${shortName(MODES[id].from(settings))} → ${shortName(MODES[id].to(settings))}`;
+import { MODES, MODE_IDS, ankiCard, direction, hint, markdown } from './view.js';
 
 // Feather icons (MIT), https://feathericons.com
 const ICONS = {
@@ -65,20 +44,6 @@ function listItem(text, note, className, onClick, aside) {
 
 const canAddToAnki = () => settings.ankiEnabled;
 
-// Both sides of the card, always main language -> second language (Anki also creates the reversed card).
-// Translate: what you typed -> the phrase. Explain: the example's translation (its note) -> the example.
-const ankiCard = (item) => (answerMode === 'translate' ? [question, item.text] : [item.note, item.text]);
-
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-// Just enough Markdown for the summary: **bold**, *italic*, `code` and line breaks.
-const markdown = (text) =>
-  escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[^\w*])[*_](?!\s)(.+?)(?<!\s)[*_](?![\w*])/g, '$1<em>$2</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
-
 function itemButton(className, html, title, onClick) {
   const button = el('span', `item-button ${className}`);
   button.innerHTML = html;
@@ -107,18 +72,11 @@ function itemActions(i) {
   return actions;
 }
 
-function hint() {
-  if (step === 'pick') return '↑↓ choose   ↵ select   esc close';
-  if (selected >= 0 && canAddToAnki()) return '↑↓ select   ↵ copy   ⇧↵ add to Anki   esc close';
-  if (selected >= 0) return '↑↓ select   ↵ copy   ⇥ switch mode   esc close';
-  return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';
-}
-
 function render() {
   const picking = step === 'pick';
 
   $('badge').hidden = picking;
-  $('badge').textContent = direction(mode);
+  $('badge').textContent = direction(mode, settings);
   $('badge').title = `${MODES[mode].label} (⌫ to change)`;
   input.placeholder = picking ? 'Pick a mode or start typing…' : MODES[mode].placeholder(settings);
 
@@ -126,7 +84,7 @@ function render() {
   $('modes').replaceChildren(
     ...MODE_IDS.map((id) =>
       listItem(
-        direction(id),
+        direction(id, settings),
         MODES[id].description(settings),
         id === mode ? 'selected' : '',
         () => chooseMode(id),
@@ -150,7 +108,7 @@ function render() {
   );
   $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
 
-  $('hint').textContent = hint();
+  $('hint').textContent = hint({ step, selected, canAddToAnki: canAddToAnki() });
   $('anki').hidden = picking || !anki;
   $('anki').textContent = anki?.text ?? '';
   $('anki').className = anki?.error ? 'error' : '';
@@ -192,8 +150,8 @@ function backToModes() {
   render();
 }
 
-function nextMode(direction) {
-  const index = MODE_IDS.indexOf(mode) + direction;
+function nextMode(offset) {
+  const index = MODE_IDS.indexOf(mode) + offset;
   mode = MODE_IDS[(index + MODE_IDS.length) % MODE_IDS.length];
   selected = -1; // so Enter asks again in the new mode
   render();
@@ -239,7 +197,7 @@ async function addItemToAnki(i) {
   selected = i;
   render();
 
-  const result = await window.api.addToAnki(...ankiCard(items[i]));
+  const result = await window.api.addToAnki(...ankiCard(answerMode, question, items[i]));
   if (id !== requestId) return;
   if (result.error) {
     anki = { text: `Anki: ${result.error}`, error: true };

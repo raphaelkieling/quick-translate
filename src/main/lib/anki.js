@@ -1,3 +1,5 @@
+import { escapeHtml } from '../../shared/text.js';
+
 // Talks to Anki through the AnkiConnect add-on: https://ankiweb.net/shared/info/2055492159
 const ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
 
@@ -21,8 +23,6 @@ async function invoke(action, params = {}) {
   return result;
 }
 
-const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 export const getDecks = () => invoke('deckNames');
 
 // Adds a note with a normal (front -> back) and a reversed (back -> front) card.
@@ -41,4 +41,12 @@ export async function addCard(deck, front, back) {
       tags: ['quicktranslate'],
     },
   });
+}
+
+// Each second language has its own deck. Returns the deck the card went to.
+export async function addCardForLanguage({ ankiEnabled, ankiDecks, secondLanguage }, front, back) {
+  const deck = ankiDecks[secondLanguage];
+  if (!ankiEnabled || !deck) throw new Error(`Turn on Anki and pick a deck for ${secondLanguage} in Settings.`);
+  await addCard(deck, front, back);
+  return deck;
 }

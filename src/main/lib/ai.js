@@ -30,19 +30,26 @@ export function hasApiKey(settings) {
   return Boolean(provider && settings[provider.keySetting]);
 }
 
-export async function ask(modeId, text, settings) {
+// Everything sent to the AI, checked first. Separate from `ask` so it can be tested without a network.
+export function buildRequest(modeId, text, settings) {
   const mode = MODES[modeId];
   const provider = PROVIDERS[settings.provider];
   if (!mode) throw new Error(`Unknown mode: ${modeId}`);
   if (!provider) throw new Error(`Unknown provider: ${settings.provider}`);
   if (!hasApiKey(settings)) throw new Error(`Add your ${provider.name} API key in Settings (⚙︎).`);
 
-  const { output } = await generateText({
+  return {
     model: provider.model(settings[provider.keySetting]),
     instructions: mode.instructions(settings),
     prompt: mode.prompt(text, settings),
     output: Output.object({ schema: answerSchema }),
     providerOptions: provider.providerOptions,
+  };
+}
+
+export async function ask(modeId, text, settings) {
+  const { output } = await generateText({
+    ...buildRequest(modeId, text, settings),
     abortSignal: AbortSignal.timeout(30_000),
   });
   return output;
