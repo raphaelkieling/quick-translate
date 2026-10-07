@@ -243,6 +243,10 @@ body.launcher::after {
   cursor: text;
 }
 
+#summary code {
+  font: 0.9em var(--mono);
+}
+
 .footer {
   display: flex;
   justify-content: space-between;
@@ -504,6 +508,38 @@ body.launcher::after {
 
 .settings label.checkbox:has(:disabled) {
   opacity: 0.5;
+}
+
+#anki-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#anki-decks:empty {
+  display: none;
+}
+
+#anki-decks label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: normal;
+}
+
+#anki-decks span {
+  flex: 0 0 35%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#anki-decks select {
+  flex: 1;
+  min-width: 0;
 }
 
 .anki-status {

@@ -63,8 +63,21 @@ function listItem(text, note, className, onClick, aside) {
   return li;
 }
 
-// Only translations become Anki cards, and only when Anki is turned on in Settings.
-const canAddToAnki = () => answerMode === 'translate' && settings.ankiEnabled;
+const canAddToAnki = () => settings.ankiEnabled;
+
+// Both sides of the card, always main language -> second language (Anki also creates the reversed card).
+// Translate: what you typed -> the phrase. Explain: the example's translation (its note) -> the example.
+const ankiCard = (item) => (answerMode === 'translate' ? [question, item.text] : [item.note, item.text]);
+
+const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Just enough Markdown for the summary: **bold**, *italic*, `code` and line breaks.
+const markdown = (text) =>
+  escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^\w*])[*_](?!\s)(.+?)(?<!\s)[*_](?![\w*])/g, '$1<em>$2</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
 
 function itemButton(className, html, title, onClick) {
   const button = el('span', `item-button ${className}`);
@@ -127,7 +140,7 @@ function render() {
   $('status').className = status?.error ? 'error' : '';
 
   $('summary').hidden = picking || !summary;
-  $('summary').textContent = summary;
+  $('summary').innerHTML = markdown(summary);
 
   $('items').hidden = picking || items.length === 0;
   $('items').replaceChildren(
@@ -220,14 +233,13 @@ async function submit() {
   render();
 }
 
-// Front: what you typed. Back: the phrase you picked. Anki also creates the reversed card.
 async function addItemToAnki(i) {
   if (!canAddToAnki() || added.has(i)) return;
   const id = requestId;
   selected = i;
   render();
 
-  const result = await window.api.addToAnki(question, items[i].text);
+  const result = await window.api.addToAnki(...ankiCard(items[i]));
   if (id !== requestId) return;
   if (result.error) {
     anki = { text: `Anki: ${result.error}`, error: true };

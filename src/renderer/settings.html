@@ -81,16 +81,17 @@
           <legend>Anki</legend>
           <label class="checkbox">
             <input name="ankiEnabled" type="checkbox" />
-            Add translations to Anki with ⇧↵
+            Add phrases to Anki with ⇧↵
           </label>
           <div class="anki-status">
             <span id="anki-status">Checking…</span>
             <button id="anki-refresh" type="button" class="link">Check again</button>
           </div>
-          <label>
-            Deck
-            <select name="ankiDeck"></select>
-          </label>
+          <div class="field">
+            <span class="field-title">Decks</span>
+            <small>Where the cards of each second language go.</small>
+            <ul id="anki-decks"></ul>
+          </div>
         </fieldset>
       </div>
 

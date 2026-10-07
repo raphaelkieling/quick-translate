@@ -196,11 +196,13 @@ ipcMain.handle('anki:decks', async () => {
   }
 });
 ipcMain.handle('anki:add', async (_event, front, back) => {
-  const { ankiEnabled, ankiDeck } = loadSettings();
-  if (!ankiEnabled || !ankiDeck) return { error: 'Turn on Anki and pick a deck in Settings.' };
+  // Each second language has its own deck.
+  const { ankiEnabled, ankiDecks, secondLanguage } = loadSettings();
+  const deck = ankiDecks[secondLanguage];
+  if (!ankiEnabled || !deck) return { error: `Turn on Anki and pick a deck for ${secondLanguage} in Settings.` };
   try {
-    await addCard(ankiDeck, front, back);
-    return { deck: ankiDeck };
+    await addCard(deck, front, back);
+    return { deck };
   } catch (error) {
     return { error: error.message };
   }
