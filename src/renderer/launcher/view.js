@@ -6,18 +6,27 @@ export const MODES = {
     label: 'Translate',
     from: (s) => s.mainLanguage,
     to: (s) => s.secondLanguage,
-    description: (s) => `Write in ${s.mainLanguage}, get natural ways to say it in ${s.secondLanguage}`,
+    description: (s) => `Natural ways to say it in ${shortName(s.secondLanguage)}`,
     placeholder: (s) => `What do you want to say? Write in ${s.mainLanguage}…`,
   },
   explain: {
     label: 'Explain',
     from: (s) => s.secondLanguage,
     to: (s) => s.mainLanguage,
-    description: (s) => `Write a word or phrase in ${s.secondLanguage}, get what it means in ${s.mainLanguage}`,
+    description: (s) => `What it means in ${shortName(s.mainLanguage)}`,
     placeholder: (s) => `A word or phrase in ${s.secondLanguage}…`,
   },
 };
 export const MODE_IDS = Object.keys(MODES);
+
+// The launcher shows a row for each second language: the one in use first, then the others.
+export const languages = ({ secondLanguage, secondLanguages = [] }) => [
+  secondLanguage,
+  ...secondLanguages.filter((language) => language !== secondLanguage),
+];
+
+// The settings as if `language` were the second language in use, for the modes above.
+export const forLanguage = (settings, language) => ({ ...settings, secondLanguage: language });
 
 // "Portuguese → English"
 export const direction = (id, settings) => `${shortName(MODES[id].from(settings))} → ${shortName(MODES[id].to(settings))}`;
@@ -36,7 +45,7 @@ export const markdown = (text) =>
 
 // The keyboard shortcuts shown at the bottom.
 export function hint({ step, selected, canAddToAnki }) {
-  if (step === 'pick') return '↑↓ choose   ↵ select   esc close';
+  if (step === 'pick') return '↑↓ language   ←→ mode   ↵ ask   esc close';
   if (selected >= 0 && canAddToAnki) return '↑↓ select   ↵ copy   ⇧↵ add to Anki   esc close';
   if (selected >= 0) return '↑↓ select   ↵ copy   ⇥ switch mode   esc close';
   return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';

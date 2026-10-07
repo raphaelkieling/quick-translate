@@ -14,6 +14,12 @@ const orError = (handler) => async (...args) => {
   }
 };
 
+// The launcher can use any of the second languages, not only the one in use.
+const settingsFor = (language) => {
+  const settings = loadSettings();
+  return settings.secondLanguages.includes(language) ? { ...settings, secondLanguage: language } : settings;
+};
+
 // Messages from the windows (see src/preload/index.cjs).
 export function registerIpc() {
   // "Open at login" is stored by macOS, not in our settings file.
@@ -32,12 +38,17 @@ export function registerIpc() {
   });
   ipcMain.on('settings:open', openSettings);
 
-  ipcMain.handle('ai:ask', orError(async (_event, mode, text) => ({ output: await ask(mode, text, loadSettings()) })));
+  ipcMain.handle(
+    'ai:ask',
+    orError(async (_event, mode, text, language) => ({ output: await ask(mode, text, settingsFor(language)) })),
+  );
 
   ipcMain.handle('anki:decks', orError(async () => ({ decks: await getDecks() })));
   ipcMain.handle(
     'anki:add',
-    orError(async (_event, front, back) => ({ deck: await addCardForLanguage(loadSettings(), front, back) })),
+    orError(async (_event, front, back, language) => ({
+      deck: await addCardForLanguage(settingsFor(language), front, back),
+    })),
   );
 
   ipcMain.on('clipboard:write', (_event, text) => clipboard.writeText(text));

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { MODE_IDS, ankiCard, direction, hint, markdown } from '../../src/renderer/launcher/view.js';
+import { MODE_IDS, ankiCard, direction, forLanguage, hint, languages, markdown } from '../../src/renderer/launcher/view.js';
 import { MODES as PROMPT_MODES } from '../../src/main/lib/prompts.js';
 
 const settings = { mainLanguage: 'Portuguese (Brazil)', secondLanguage: 'English' };
@@ -13,6 +13,27 @@ describe('launcher modes', () => {
   it('shows the direction with short language names', () => {
     assert.equal(direction('translate', settings), 'Portuguese → English');
     assert.equal(direction('explain', settings), 'English → Portuguese');
+  });
+});
+
+describe('languages', () => {
+  it('puts the second language in use first, then the others in order', () => {
+    const settings = { secondLanguage: 'French', secondLanguages: ['English', 'French', 'Japanese'] };
+    assert.deepEqual(languages(settings), ['French', 'English', 'Japanese']);
+  });
+
+  it('keeps the language in use even when it is not in the list', () => {
+    assert.deepEqual(languages({ secondLanguage: 'German', secondLanguages: ['English'] }), ['German', 'English']);
+    assert.deepEqual(languages({ secondLanguage: 'German' }), ['German']);
+  });
+});
+
+describe('forLanguage', () => {
+  it('shows the modes for another second language', () => {
+    const french = forLanguage(settings, 'French');
+    assert.equal(direction('translate', french), 'Portuguese → French');
+    assert.equal(direction('explain', french), 'French → Portuguese');
+    assert.equal(settings.secondLanguage, 'English');
   });
 });
 
@@ -45,7 +66,7 @@ describe('markdown', () => {
 
 describe('hint', () => {
   it('changes with the step, the selection and Anki', () => {
-    assert.match(hint({ step: 'pick', selected: -1 }), /choose/);
+    assert.match(hint({ step: 'pick', selected: -1 }), /↑↓ language +←→ mode/);
     assert.match(hint({ step: 'ask', selected: -1 }), /ask/);
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: false }), /copy .* switch mode/);
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: true }), /add to Anki/);

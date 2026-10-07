@@ -161,6 +161,39 @@ body.launcher::after {
   background: var(--selected);
 }
 
+/* Modes: a row for each second language, its two modes side by side */
+#modes {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+#modes li {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+  border-left: 0;
+}
+
+#modes .cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 7px 14px 7px 12px;
+  border-left: 2px solid transparent;
+}
+
+#modes .cell + .cell {
+  box-shadow: inset 1px 0 var(--line);
+}
+
+#modes .cell.selected {
+  border-left-color: var(--accent);
+  background: var(--selected);
+  box-shadow: none;
+}
+
 .list .text {
   font-size: 14px;
 }

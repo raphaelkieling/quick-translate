@@ -1,5 +1,5 @@
 import { boldToHtml, stripBold } from '../../shared/text.js';
-import { MODES, MODE_IDS, ankiCard, direction, hint, markdown } from './view.js';
+import { MODES, MODE_IDS, ankiCard, direction, forLanguage, hint, languages, markdown } from './view.js';
 
 // Feather icons (MIT), https://feathericons.com
 const ICONS = {
@@ -12,8 +12,9 @@ const $ = (id) => document.getElementById(id);
 const input = $('input');
 
 let settings = {};
-let step = 'pick'; // first 'pick' a mode, then 'ask'
+let step = 'pick'; // 'pick' a mode while typing, then 'ask' shows the answer
 let mode = 'translate'; // highlighted mode while picking, chosen mode while asking
+let language = ''; // highlighted second language while picking, chosen one while asking
 let status = null; // { text, error }
 let anki = null; // result of the last "add to Anki": { text, error }
 let question = ''; // the text that was asked
@@ -35,8 +36,8 @@ function el(tag, className, text) {
 }
 
 // The text and the note can have **bold** words (see src/main/lib/prompts.js).
-function listItem(text, note, className, onClick, aside) {
-  const li = el('li', className);
+function listItem(text, note, className, onClick, aside, tag = 'li') {
+  const li = el(tag, className);
   const body = el('div', 'body');
   const textNode = el('div', 'text');
   const noteNode = el('div', 'note');
@@ -78,26 +79,37 @@ function itemActions(i) {
   return actions;
 }
 
-function render() {
-  const picking = step === 'pick';
-
-  $('badge').hidden = picking;
-  $('badge').textContent = direction(mode, settings);
-  $('badge').title = `${MODES[mode].label} (⌫ to change)`;
-  input.placeholder = picking ? 'Pick a mode or start typing…' : MODES[mode].placeholder(settings);
-
-  $('modes').hidden = !picking;
-  $('modes').replaceChildren(
+// A row for each second language, with its modes side by side.
+function languageRow(lang) {
+  const languageSettings = forLanguage(settings, lang);
+  const row = el('li');
+  row.append(
     ...MODE_IDS.map((id) =>
       listItem(
-        direction(id, settings),
-        MODES[id].description(settings),
-        id === mode ? 'selected' : '',
-        () => chooseMode(id),
+        direction(id, languageSettings),
+        MODES[id].description(languageSettings),
+        lang === language && id === mode ? 'cell selected' : 'cell',
+        () => chooseMode(id, lang),
         el('span', 'tag', MODES[id].label),
+        'div',
       ),
     ),
   );
+  return row;
+}
+
+function render() {
+  const picking = step === 'pick';
+  const languageSettings = forLanguage(settings, language);
+
+  $('badge').hidden = picking;
+  $('badge').textContent = direction(mode, languageSettings);
+  $('badge').title = `${MODES[mode].label} (⌫ to change)`;
+  input.placeholder = MODES[mode].placeholder(languageSettings);
+
+  $('modes').hidden = !picking;
+  $('modes').replaceChildren(...languages(settings).map(languageRow));
+  $('modes').querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
 
   $('status').hidden = picking || !status;
   $('status').textContent = status?.text ?? '';
@@ -126,6 +138,7 @@ function reset(newSettings) {
   settings = newSettings;
   step = 'pick';
   mode = settings.defaultMode;
+  language = settings.secondLanguage;
   status = null;
   anki = null;
   summary = '';
@@ -138,11 +151,13 @@ function reset(newSettings) {
   input.focus();
 }
 
-function chooseMode(id) {
+// Clicking a mode asks right away when there is something typed.
+function chooseMode(id, lang) {
   mode = id;
-  step = 'ask';
+  language = lang;
   render();
   input.focus();
+  submit();
 }
 
 function backToModes() {
@@ -163,6 +178,13 @@ function nextMode(offset) {
   render();
 }
 
+function nextLanguage(offset) {
+  const list = languages(settings);
+  const index = list.indexOf(language) + offset;
+  language = list[(index + list.length) % list.length];
+  render();
+}
+
 function selectItem(i) {
   selected = Math.max(-1, Math.min(i, items.length - 1));
   render();
@@ -173,6 +195,7 @@ async function submit() {
   if (!text) return;
 
   const id = ++requestId;
+  step = 'ask';
   status = { text: 'Thinking…' };
   anki = null;
   summary = '';
@@ -180,7 +203,7 @@ async function submit() {
   selected = -1;
   render();
 
-  const { output, error } = await window.api.ask(mode, text);
+  const { output, error } = await window.api.ask(mode, text, language);
   if (id !== requestId) return;
 
   if (error) {
@@ -203,7 +226,7 @@ async function addItemToAnki(i) {
   selected = i;
   render();
 
-  const result = await window.api.addToAnki(...ankiCard(answerMode, question, items[i]));
+  const result = await window.api.addToAnki(...ankiCard(answerMode, question, items[i]), language);
   if (id !== requestId) return;
   if (result.error) {
     anki = { text: `Anki: ${result.error}`, error: true };
@@ -229,10 +252,14 @@ function copyItem(i) {
 // --- Keyboard and mouse ---
 
 // Each returns true when it handled the key.
-function onPickKey(key) {
-  if (key === 'ArrowDown' || key === 'Tab') nextMode(1);
-  else if (key === 'ArrowUp') nextMode(-1);
-  else if (key === 'Enter') chooseMode(mode);
+// While picking, the bare arrows choose the mode: ⌥ and ⌘ arrows still move the cursor in the text.
+function onPickKey(key, withModifier) {
+  if (withModifier && key.startsWith('Arrow')) return false;
+  if (key === 'ArrowDown') nextLanguage(1);
+  else if (key === 'ArrowUp') nextLanguage(-1);
+  else if (key === 'ArrowRight' || key === 'Tab') nextMode(1);
+  else if (key === 'ArrowLeft') nextMode(-1);
+  else if (key === 'Enter') submit();
   else return false;
   return true;
 }
@@ -252,15 +279,14 @@ function onAskKey(key, shiftKey) {
 document.addEventListener('keydown', (e) => {
   if (e.isComposing) return;
   if (e.key === 'Escape') return window.api.hide();
-  const handled = step === 'pick' ? onPickKey(e.key) : onAskKey(e.key, e.shiftKey);
+  const withModifier = e.altKey || e.metaKey || e.ctrlKey || e.shiftKey;
+  const handled = step === 'pick' ? onPickKey(e.key, withModifier) : onAskKey(e.key, e.shiftKey);
   if (handled) e.preventDefault();
 });
 
 input.addEventListener('input', () => {
-  // Typing while picking goes straight to the highlighted mode.
-  if (step === 'pick' && input.value) step = 'ask';
-  selected = -1;
-  render();
+  // Changing the text shows the modes again, to ask in any of them.
+  if (step === 'ask') backToModes();
 });
 
 $('badge').onclick = () => {
