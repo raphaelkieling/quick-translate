@@ -32,6 +32,13 @@ describe('normalizeSettings', () => {
     assert.equal('ankiDeck' in settings, false);
   });
 
+  it('starts in the old default mode, and turns the old Explain mode into the reverse translation', () => {
+    assert.equal(normalizeSettings({ defaultMode: 'translate' }).lastMode, 'translate');
+    assert.equal(normalizeSettings({ defaultMode: 'explain' }).lastMode, 'reverse');
+    assert.equal(normalizeSettings({ defaultMode: 'explain', lastMode: 'translate' }).lastMode, 'translate');
+    assert.equal('defaultMode' in normalizeSettings({ defaultMode: 'translate' }), false);
+  });
+
   it('ignores the old deck when there are decks per language', () => {
     const settings = normalizeSettings({ ankiDeck: 'Old', ankiDecks: { English: 'New' } });
     assert.deepEqual(settings.ankiDecks, { English: 'New' });

@@ -1,7 +1,7 @@
 import { app, clipboard, ipcMain } from 'electron';
 import { ask, decideMode, decisionKey, requestKey } from './lib/ai.js';
 import { addCardForLanguage, getDecks } from './lib/anki.js';
-import { updateTrayMenu } from './menu.js';
+import { setSecondLanguage, updateTrayMenu } from './menu.js';
 import { cache, history, loadSettings, saveSettings } from './store.js';
 import { applyTheme, hideLauncher, openSettings, resizeLauncher } from './windows.js';
 
@@ -31,6 +31,13 @@ async function withCache(key, settings, run) {
   return { value, cached: false };
 }
 
+// The launcher opens again in the mode and the second language you used last.
+function remember(mode, language) {
+  const { lastMode, secondLanguage } = loadSettings();
+  if (mode !== lastMode) saveSettings({ lastMode: mode });
+  if (language !== secondLanguage) setSecondLanguage(language);
+}
+
 // Messages from the windows (see src/preload/index.cjs).
 export function registerIpc() {
   // "Open at login" is stored by macOS, not in our settings file.
@@ -53,6 +60,7 @@ export function registerIpc() {
     'ai:ask',
     orError(async (_event, mode, text, language) => {
       const settings = settingsFor(language);
+      remember(mode, settings.secondLanguage);
       const { value: output, cached } = await withCache(requestKey(mode, text, settings), settings, () =>
         ask(mode, text, settings),
       );

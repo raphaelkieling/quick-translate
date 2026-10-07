@@ -34,7 +34,7 @@ export function updateTrayMenu() {
   );
 }
 
-function setSecondLanguage(secondLanguage) {
+export function setSecondLanguage(secondLanguage) {
   saveSettings({ secondLanguage });
   updateTrayMenu();
   // Keep an open Settings window in sync, so saving it doesn't undo the change.

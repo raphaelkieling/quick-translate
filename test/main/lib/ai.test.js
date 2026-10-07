@@ -47,9 +47,10 @@ describe('buildRequest', () => {
   });
 
   it('builds the prompt for the mode with the languages', () => {
-    const request = buildRequest('explain', 'break a leg', settings);
+    const request = buildRequest('reverse', 'break a leg', settings);
     assert.equal(request.prompt, 'break a leg');
-    assert.match(request.instructions, /native Portuguese \(Brazil\) speaker learning English/);
+    assert.match(request.instructions, /native Portuguese \(Brazil\) speaker who is learning English/);
+    assert.match(request.instructions, /wants to say it in Portuguese \(Brazil\)/);
     assert.ok(request.model);
     assert.ok(request.output);
   });
@@ -71,7 +72,7 @@ describe('requestKey', () => {
 
   it('changes with the mode, the text, the languages and the provider', () => {
     const key = requestKey('translate', 'oi', settings);
-    assert.notEqual(requestKey('explain', 'oi', settings), key);
+    assert.notEqual(requestKey('reverse', 'oi', settings), key);
     assert.notEqual(requestKey('translate', 'olá', settings), key);
     assert.notEqual(requestKey('translate', 'oi', { ...settings, secondLanguage: 'French' }), key);
     assert.notEqual(requestKey('translate', 'oi', { ...settings, mainLanguage: 'Spanish' }), key);
@@ -129,9 +130,9 @@ describe('readDecision', () => {
     assert.deepEqual(await decide('Portuguese (Brazil)'), { mode: 'translate', language: 'English' });
   });
 
-  it('a second language: explains it', async () => {
-    assert.deepEqual(await decide('English'), { mode: 'explain', language: 'English' });
-    assert.deepEqual(await decide('Spanish'), { mode: 'explain', language: 'Spanish' });
+  it('a second language: translates it to the main language', async () => {
+    assert.deepEqual(await decide('English'), { mode: 'reverse', language: 'English' });
+    assert.deepEqual(await decide('Spanish'), { mode: 'reverse', language: 'Spanish' });
   });
 
   it('another language: keeps the mode you have', async () => {

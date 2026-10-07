@@ -74,8 +74,11 @@ function listItem(text, note, className, onClick, aside, tag = 'li') {
 
 const canAddToAnki = () => settings.ankiEnabled;
 
-// The answers are in the second language: read them with its voice (picked in Settings).
-const voice = () => pickVoice(language, systemVoices, settings.voices?.[language]);
+// Read the answers with the voice of the language they are in (picked in Settings for the second languages).
+function voice() {
+  const to = MODES[answerMode || mode].to(forLanguage(settings, language));
+  return pickVoice(to, systemVoices, settings.voices?.[to]);
+}
 
 function itemButton(className, html, title, onClick) {
   const button = el('span', `item-button ${className}`);
@@ -131,6 +134,9 @@ function languageRow(lang) {
   row.querySelector('.auto')?.setAttribute('title', 'Picked by Real Time Mode');
   return row;
 }
+
+// Older versions had an Explain mode: its answers are not shown.
+const knownModes = (list) => list.filter((entry) => MODES[entry.mode]);
 
 // Shown under the modes until you type something.
 const showsHistory = () => step === 'pick' && !input.value.trim() && history.length > 0;
@@ -199,10 +205,10 @@ function render() {
 
 function reset(newSettings, newHistory) {
   settings = newSettings;
-  history = newHistory;
+  history = knownModes(newHistory);
   historySelected = -1;
   step = 'pick';
-  mode = settings.defaultMode;
+  mode = MODES[settings.lastMode] ? settings.lastMode : 'translate';
   language = settings.secondLanguage;
   status = null;
   anki = null;
@@ -316,7 +322,7 @@ async function submit() {
     status = null;
     showAnswer(text, response.output, response.cached);
     window.api.getHistory().then((list) => {
-      history = list;
+      history = knownModes(list);
     });
   }
   render();

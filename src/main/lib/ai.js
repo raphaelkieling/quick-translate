@@ -87,7 +87,7 @@ export function buildDecision(text, settings) {
 export function readDecision(answers, { mainLanguage, secondLanguage, secondLanguages }) {
   const written = answers.language.choice;
   if (written === mainLanguage) return { mode: 'translate', language: secondLanguage };
-  if (secondLanguages.includes(written)) return { mode: 'explain', language: written };
+  if (secondLanguages.includes(written)) return { mode: 'reverse', language: written };
   return null;
 }
 

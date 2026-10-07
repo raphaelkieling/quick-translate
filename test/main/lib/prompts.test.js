@@ -20,6 +20,13 @@ describe('MODES', () => {
   }
 });
 
+describe('translate and reverse', () => {
+  it('translate to the second language and back', () => {
+    assert.match(MODES.translate.instructions(settings), /wants to say it in Japanese/);
+    assert.match(MODES.reverse.instructions(settings), /wants to say it in Portuguese \(Brazil\)/);
+  });
+});
+
 describe('answerSchema', () => {
   it('accepts a summary with items', () => {
     const answer = { summary: '', items: [{ text: 'Hi', note: 'casual' }] };

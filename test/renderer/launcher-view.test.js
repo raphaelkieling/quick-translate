@@ -22,7 +22,7 @@ describe('launcher modes', () => {
 
   it('shows the direction with short language names', () => {
     assert.equal(direction('translate', settings), 'Portuguese → English');
-    assert.equal(direction('explain', settings), 'English → Portuguese');
+    assert.equal(direction('reverse', settings), 'English → Portuguese');
   });
 });
 
@@ -42,7 +42,7 @@ describe('forLanguage', () => {
   it('shows the modes for another second language', () => {
     const french = forLanguage(settings, 'French');
     assert.equal(direction('translate', french), 'Portuguese → French');
-    assert.equal(direction('explain', french), 'French → Portuguese');
+    assert.equal(direction('reverse', french), 'French → Portuguese');
     assert.equal(settings.secondLanguage, 'English');
   });
 });
@@ -54,8 +54,8 @@ describe('ankiCard', () => {
     assert.deepEqual(ankiCard('translate', 'Boa sorte', item), ['Boa sorte', 'Break a leg!']);
   });
 
-  it("explain: the example's translation -> the example", () => {
-    assert.deepEqual(ankiCard('explain', 'break a leg', item), ['Boa sorte!', 'Break a leg!']);
+  it('the other way: the phrase -> what you typed', () => {
+    assert.deepEqual(ankiCard('reverse', 'break a leg', { text: 'Boa sorte!', note: 'casual' }), ['Boa sorte!', 'break a leg']);
   });
 });
 
@@ -89,15 +89,11 @@ describe('hint', () => {
 describe('historyPreview', () => {
   const output = { summary: 'A wish of **good luck**.\nUsed in theater.', items: [{ text: 'Break a leg!', note: '' }] };
 
-  it('shows the first phrase for Translate', () => {
+  it('shows the first phrase', () => {
     assert.equal(historyPreview({ mode: 'translate', output }), 'Break a leg!');
   });
 
-  it('shows the first line of the meaning for Explain', () => {
-    assert.equal(historyPreview({ mode: 'explain', output }), 'A wish of **good luck**.');
-  });
-
-  it('falls back to the summary when there are no phrases', () => {
+  it('falls back to the first line of the tip when there are no phrases', () => {
     assert.equal(historyPreview({ mode: 'translate', output: { ...output, items: [] } }), 'A wish of **good luck**.');
   });
 });

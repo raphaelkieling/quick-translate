@@ -9,11 +9,12 @@ A Spotlight-like launcher for learning a second language. Double-tap **⌘** to 
 **Website:** [raphaelkieling.github.io/quick-translate](https://raphaelkieling.github.io/quick-translate/)
 
 - **Translate**: say it in your language, get natural ways to say it in the other.
-- **Explain**: paste a word or sentence, get what it means.
+- **Translate back**: paste something in the other language, get natural ways to say it in yours.
 - **Listen**: hear any answer read aloud by a macOS voice (pick one for each language in Settings).
+- The launcher opens in the mode and language you used last.
 - **History**: your last answers show under the modes while nothing is typed. Click one (or ↓ to it and ↵) to see it again.
 - **Cache**: asking the same thing again answers instantly, without calling the AI. Turn it off or clear it in Settings.
-- **Real Time Mode** (optional, in Settings): finds the language you type in. Your main language goes to Translate, a second language to Explain.
+- **Real Time Mode** (optional, in Settings): finds the language you type in. Your main language translates to the second one, a second language translates back to yours.
 
 Works with OpenAI, Claude or Gemini. Can send translations to Anki via [AnkiConnect](https://ankiweb.net/shared/info/2055492159).
 

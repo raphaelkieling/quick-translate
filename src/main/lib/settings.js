@@ -6,7 +6,7 @@ export const DEFAULTS = {
   openaiApiKey: '',
   anthropicApiKey: '',
   googleApiKey: '',
-  defaultMode: 'translate', // 'translate' or 'explain'
+  lastMode: 'translate', // the launcher opens in the mode you used last: 'translate' (main → second) or 'reverse'
   realtimeMode: false, // pick the mode from the language you type in (see languageQuestion in src/main/lib/prompts.js)
   cacheEnabled: true, // answer the same request again from the cache (see src/main/lib/cache.js)
   theme: 'system', // 'system', 'light' or 'dark'
@@ -19,7 +19,7 @@ export const DEFAULTS = {
 };
 
 // Fills in the defaults and upgrades settings saved by older versions.
-export function normalizeSettings({ apiKey, ankiDeck, ...saved }) {
+export function normalizeSettings({ apiKey, ankiDeck, defaultMode, ...saved }) {
   // Older versions only supported OpenAI and saved its key as `apiKey`.
   const settings = { ...DEFAULTS, openaiApiKey: apiKey ?? '', ...saved };
   // Older versions had a single second language: keep it in the list.
@@ -28,6 +28,10 @@ export function normalizeSettings({ apiKey, ankiDeck, ...saved }) {
   if (!saved.ankiDecks && ankiDeck) {
     settings.ankiDecks = Object.fromEntries(settings.secondLanguages.map((language) => [language, ankiDeck]));
   }
+  // Older versions always started in the mode picked in Settings: start in it until you use another one.
+  if (!saved.lastMode && defaultMode) settings.lastMode = defaultMode;
+  // Older versions had an Explain mode: it's now the translation the other way.
+  if (settings.lastMode === 'explain') settings.lastMode = 'reverse';
   return settings;
 }
 

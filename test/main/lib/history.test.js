@@ -50,7 +50,7 @@ describe('createHistory', () => {
   it('keeps the same text in another mode or language', () => {
     const history = createHistory(file);
     history.add(entry('hi'));
-    history.add(entry('hi', 'explain'));
+    history.add(entry('hi', 'reverse'));
     history.add(entry('hi', 'translate', 'French'));
     assert.equal(history.list().length, 3);
   });

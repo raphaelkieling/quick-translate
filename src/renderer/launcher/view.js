@@ -9,12 +9,12 @@ export const MODES = {
     description: (s) => `Natural ways to say it in ${shortName(s.secondLanguage)}`,
     placeholder: (s) => `What do you want to say? Write in ${s.mainLanguage}…`,
   },
-  explain: {
-    label: 'Explain',
+  reverse: {
+    label: 'Translate',
     from: (s) => s.secondLanguage,
     to: (s) => s.mainLanguage,
-    description: (s) => `What it means in ${shortName(s.mainLanguage)}`,
-    placeholder: (s) => `A word or phrase in ${s.secondLanguage}…`,
+    description: (s) => `Natural ways to say it in ${shortName(s.mainLanguage)}`,
+    placeholder: (s) => `Something in ${s.secondLanguage} to translate…`,
   },
 };
 export const MODE_IDS = Object.keys(MODES);
@@ -32,9 +32,9 @@ export const forLanguage = (settings, language) => ({ ...settings, secondLanguag
 export const direction = (id, settings) => `${shortName(MODES[id].from(settings))} → ${shortName(MODES[id].to(settings))}`;
 
 // Both sides of the card, always main language -> second language (Anki also creates the reversed card).
-// Translate: what you typed -> the phrase. Explain: the example's translation (its note) -> the example.
+// Translate: what you typed -> the phrase. The other way: the phrase -> what you typed.
 export const ankiCard = (answerMode, question, item) =>
-  answerMode === 'translate' ? [question, item.text] : [item.note, item.text];
+  answerMode === 'translate' ? [question, item.text] : [item.text, question];
 
 // Just enough Markdown for the summary: **bold**, *italic*, `code` and line breaks.
 export const markdown = (text) =>
@@ -43,9 +43,8 @@ export const markdown = (text) =>
     .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/\n/g, '<br>');
 
-// The line under each history entry: the first phrase for Translate, the meaning for Explain.
-export const historyPreview = ({ mode, output }) =>
-  (mode === 'translate' && output.items[0]?.text) || output.summary.split('\n')[0];
+// The line under each history entry: the first phrase, or the tip when there is none.
+export const historyPreview = ({ output }) => output.items[0]?.text || output.summary.split('\n')[0];
 
 // "now", "5 min ago", "3 h ago", "2 d ago"
 export function timeAgo(at, now = Date.now()) {
