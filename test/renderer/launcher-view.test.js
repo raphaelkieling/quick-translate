@@ -70,5 +70,7 @@ describe('hint', () => {
     assert.match(hint({ step: 'ask', selected: -1 }), /ask/);
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: false }), /copy .* switch mode/);
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: true }), /add to Anki/);
+    assert.match(hint({ step: 'ask', selected: 0, canSpeak: true }), /⌘↵ listen/);
+    assert.doesNotMatch(hint({ step: 'ask', selected: 0, canSpeak: false }), /listen/);
   });
 });

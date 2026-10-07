@@ -10,6 +10,7 @@ A Spotlight-like launcher for learning a second language. Double-tap **⌘** to 
 
 - **Translate**: say it in your language, get natural ways to say it in the other.
 - **Explain**: paste a word or sentence, get what it means.
+- **Listen**: hear any answer read aloud by a macOS voice (pick one for each language in Settings).
 
 Works with OpenAI, Claude or Gemini. Can send translations to Anki via [AnkiConnect](https://ankiweb.net/shared/info/2055492159).
 

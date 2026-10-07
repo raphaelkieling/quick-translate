@@ -213,6 +213,15 @@ body.launcher::after {
   text-transform: uppercase;
 }
 
+/* Listen button on the left of each answer */
+.item-button.speak {
+  margin: 0 -6px 0 -3px;
+}
+
+.item-button.speaking {
+  color: var(--accent);
+}
+
 /* Buttons on the right of each answer, visible on hover or when selected */
 .item-actions {
   flex-shrink: 0;
@@ -471,7 +480,7 @@ body.launcher::after {
   border: 1px solid var(--line);
   background: var(--field);
   /* About 3 languages, then it scrolls (the Settings window has a fixed size). */
-  max-height: 88px;
+  max-height: 100px;
   overflow-y: auto;
 }
 
@@ -495,6 +504,32 @@ body.launcher::after {
   align-items: center;
   gap: 8px;
   font-weight: normal;
+}
+
+#second-languages select {
+  width: 150px;
+  height: 22px;
+  padding-left: 6px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+#second-languages .listen {
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+#second-languages .listen:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+#second-languages .listen:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 #second-languages .remove {

@@ -1,10 +1,13 @@
 import { boldToHtml, stripBold } from '../../shared/text.js';
+import { loadVoices, pickVoice, speak, stopSpeaking } from '../speech.js';
 import { MODES, MODE_IDS, ankiCard, direction, forLanguage, hint, languages, markdown } from './view.js';
 
 // Feather icons (MIT), https://feathericons.com
 const ICONS = {
   copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   check: '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+  volume:
+    '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
 };
 
@@ -24,6 +27,8 @@ let items = [];
 let added = new Set(); // items already added to Anki
 let selected = -1; // highlighted item, -1 for none
 let copied = -1; // item that was just copied
+let speaking = -1; // item being read aloud
+let systemVoices = []; // the text to speech voices installed on the Mac
 let requestId = 0; // used to ignore answers to outdated requests
 
 // --- Rendering ---
@@ -51,6 +56,9 @@ function listItem(text, note, className, onClick, aside, tag = 'li') {
 
 const canAddToAnki = () => settings.ankiEnabled;
 
+// The answers are in the second language: read them with its voice (picked in Settings).
+const voice = () => pickVoice(language, systemVoices, settings.voices?.[language]);
+
 function itemButton(className, html, title, onClick) {
   const button = el('span', `item-button ${className}`);
   button.innerHTML = html;
@@ -60,6 +68,13 @@ function itemButton(className, html, title, onClick) {
     onClick();
   };
   return button;
+}
+
+function speakButton(i) {
+  const isSpeaking = i === speaking;
+  return itemButton(isSpeaking ? 'speak speaking' : 'speak', ICONS.volume, isSpeaking ? 'Stop' : 'Listen (⌘↵)', () =>
+    speakItem(i),
+  );
 }
 
 function itemActions(i) {
@@ -121,12 +136,14 @@ function render() {
   $('items').hidden = picking || items.length === 0;
   $('items').replaceChildren(
     ...items.map((item, i) => {
-      return listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
+      const li = listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
+      if (voice()) li.prepend(speakButton(i));
+      return li;
     }),
   );
   $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
 
-  $('hint').textContent = hint({ step, selected, canAddToAnki: canAddToAnki() });
+  $('hint').textContent = hint({ step, selected, canAddToAnki: canAddToAnki(), canSpeak: Boolean(voice()) });
   $('anki').hidden = picking || !anki;
   $('anki').textContent = anki?.text ?? '';
   $('anki').className = anki?.error ? 'error' : '';
@@ -145,6 +162,7 @@ function reset(newSettings) {
   items = [];
   selected = -1;
   copied = -1;
+  stopItem();
   requestId++;
   input.value = '';
   render();
@@ -162,6 +180,7 @@ function chooseMode(id, lang) {
 
 function backToModes() {
   step = 'pick';
+  stopItem();
   status = null;
   anki = null;
   summary = '';
@@ -196,6 +215,7 @@ async function submit() {
 
   const id = ++requestId;
   step = 'ask';
+  stopItem();
   status = { text: 'Thinking…' };
   anki = null;
   summary = '';
@@ -237,6 +257,28 @@ async function addItemToAnki(i) {
   render();
 }
 
+function stopItem() {
+  stopSpeaking();
+  speaking = -1;
+}
+
+// Click again to stop.
+function speakItem(i) {
+  const v = voice();
+  if (!v) return;
+  selected = i;
+  if (speaking === i) {
+    stopItem();
+  } else {
+    speaking = i;
+    speak(stripBold(items[i].text), v, () => {
+      speaking = -1;
+      render();
+    });
+  }
+  render();
+}
+
 function copyItem(i) {
   window.api.copy(stripBold(items[i].text));
   selected = i;
@@ -264,11 +306,12 @@ function onPickKey(key, withModifier) {
   return true;
 }
 
-function onAskKey(key, shiftKey) {
+function onAskKey(key, shiftKey, metaKey) {
   if (key === 'Tab') nextMode(1);
   else if (key === 'ArrowDown' && items.length) selectItem(selected + 1);
   else if (key === 'ArrowUp' && items.length) selectItem(selected - 1);
   else if (key === 'Enter' && shiftKey && selected >= 0) addItemToAnki(selected);
+  else if (key === 'Enter' && metaKey && selected >= 0) speakItem(selected);
   else if (key === 'Enter' && selected >= 0) copyItem(selected);
   else if (key === 'Enter') submit();
   else if (key === 'Backspace' && input.value === '') backToModes();
@@ -280,7 +323,7 @@ document.addEventListener('keydown', (e) => {
   if (e.isComposing) return;
   if (e.key === 'Escape') return window.api.hide();
   const withModifier = e.altKey || e.metaKey || e.ctrlKey || e.shiftKey;
-  const handled = step === 'pick' ? onPickKey(e.key, withModifier) : onAskKey(e.key, e.shiftKey);
+  const handled = step === 'pick' ? onPickKey(e.key, withModifier) : onAskKey(e.key, e.shiftKey, e.metaKey);
   if (handled) e.preventDefault();
 });
 
@@ -305,3 +348,7 @@ window.addEventListener('focus', () => input.focus());
 new ResizeObserver(() => window.api.resize($('app').getBoundingClientRect().height)).observe($('app'));
 
 window.api.onShow(reset);
+loadVoices().then((voices) => {
+  systemVoices = voices;
+  render();
+});

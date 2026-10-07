@@ -1,3 +1,4 @@
+import { loadVoices, speak, voicesFor } from '../speech.js';
 import { guessDeck } from './decks.js';
 
 const form = document.getElementById('form');
@@ -12,7 +13,7 @@ function updateRequired() {
   for (const select of deckList.querySelectorAll('select')) select.required = fields.ankiEnabled.checked;
 }
 
-// --- Second languages: a list with a radio for the one in use ---
+// --- Second languages: a list with a radio for the one in use and a voice for each ---
 
 const languageList = document.getElementById('second-languages');
 const newLanguage = document.getElementById('new-language');
@@ -20,6 +21,7 @@ const newLanguage = document.getElementById('new-language');
 const secondLanguages = () => [...languageList.querySelectorAll('input')].map((radio) => radio.value);
 
 function renderLanguages(languages, current) {
+  rememberVoices();
   languageList.replaceChildren(
     ...languages.map((language) => {
       const item = document.createElement('li');
@@ -29,7 +31,7 @@ function renderLanguages(languages, current) {
       label.append(radio, language);
       const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'remove', textContent: '×', title: 'Remove' });
       remove.addEventListener('click', () => removeLanguage(language));
-      item.append(label, remove);
+      item.append(label, ...voicePicker(language), remove);
       return item;
     }),
   );
@@ -108,6 +110,40 @@ async function checkAnki() {
   renderDecks();
 }
 
+// --- Voices: the text to speech voice of each second language ---
+
+let systemVoices = []; // the voices installed on the Mac
+let chosenVoices = {}; // { language: voiceURI }, also remembers removed languages until the window closes
+
+function rememberVoices() {
+  for (const { dataset, value } of languageList.querySelectorAll('select')) {
+    if (value) chosenVoices[dataset.language] = value;
+  }
+}
+
+// A select with the voices of the language and a button to hear the chosen one.
+function voicePicker(language) {
+  const voices = voicesFor(language, systemVoices);
+  const select = document.createElement('select');
+  select.dataset.language = language;
+  select.title = 'Get more voices in System Settings → Accessibility → Spoken Content';
+  select.disabled = voices.length === 0;
+  if (select.disabled) select.append(new Option('No voice installed', ''));
+  select.append(...voices.map((voice) => new Option(`${voice.name} (${voice.lang})`, voice.voiceURI)));
+  // The best voice is first: keep it when nothing was chosen (or the chosen one was uninstalled).
+  select.value = chosenVoices[language] ?? '';
+  if (select.selectedIndex < 0) select.selectedIndex = 0;
+
+  const listen = Object.assign(document.createElement('button'), { type: 'button', className: 'listen', textContent: '▶', title: 'Listen' });
+  listen.disabled = select.disabled;
+  // Says the name of the language, in that language: "português (Brasil)".
+  listen.addEventListener('click', () => {
+    const voice = voices.find((v) => v.voiceURI === select.value);
+    speak(new Intl.DisplayNames([voice.lang], { type: 'language' }).of(voice.lang), voice);
+  });
+  return [select, listen];
+}
+
 window.api.getSettings().then((settings) => {
   for (const [name, value] of Object.entries(settings)) {
     const field = fields[name];
@@ -119,13 +155,24 @@ window.api.getSettings().then((settings) => {
     fields.openAtLogin.parentElement.title = 'Only in the built app (npm run build)';
   }
   chosenDecks = { ...settings.ankiDecks };
+  chosenVoices = { ...settings.voices };
   renderLanguages(settings.secondLanguages, settings.secondLanguage);
   checkAnki();
+  loadVoices().then((voices) => {
+    systemVoices = voices;
+    renderLanguages(secondLanguages(), currentLanguage());
+  });
 });
 
 fields.provider.addEventListener('change', updateRequired);
 fields.ankiEnabled.addEventListener('change', updateRequired);
 document.getElementById('anki-refresh').addEventListener('click', () => checkAnki());
+
+// { language: value } of the selects in a list, without the empty ones.
+const selectedPerLanguage = (list) =>
+  Object.fromEntries(
+    [...list.querySelectorAll('select')].filter((select) => select.value).map((select) => [select.dataset.language, select.value]),
+  );
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -135,9 +182,8 @@ form.addEventListener('submit', async (e) => {
   values.openAtLogin = fields.openAtLogin.checked;
   values.secondLanguages = secondLanguages();
   values.secondLanguage = currentLanguage();
-  values.ankiDecks = Object.fromEntries(
-    [...deckList.querySelectorAll('select')].filter((select) => select.value).map((select) => [select.dataset.language, select.value]),
-  );
+  values.ankiDecks = selectedPerLanguage(deckList);
+  values.voices = selectedPerLanguage(languageList);
   await window.api.saveSettings(values);
   window.close();
 });

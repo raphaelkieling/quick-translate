@@ -13,6 +13,7 @@ export const DEFAULTS = {
   secondLanguage: 'English', // the one in use (switch it from the menu bar icon)
   ankiEnabled: false, // create an Anki card for each translation
   ankiDecks: {}, // the deck of each second language: { English: 'English::Phrases' }
+  voices: {}, // the text to speech voice of each second language: { English: 'Samantha' } (see src/renderer/speech.js)
 };
 
 // Fills in the defaults and upgrades settings saved by older versions.

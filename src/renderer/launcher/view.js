@@ -44,9 +44,12 @@ export const markdown = (text) =>
     .replace(/\n/g, '<br>');
 
 // The keyboard shortcuts shown at the bottom.
-export function hint({ step, selected, canAddToAnki }) {
+export function hint({ step, selected, canAddToAnki, canSpeak }) {
   if (step === 'pick') return '↑↓ language   ←→ mode   ↵ ask   esc close';
-  if (selected >= 0 && canAddToAnki) return '↑↓ select   ↵ copy   ⇧↵ add to Anki   esc close';
-  if (selected >= 0) return '↑↓ select   ↵ copy   ⇥ switch mode   esc close';
-  return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';
+  if (selected < 0) return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';
+  const keys = ['↑↓ select', '↵ copy'];
+  if (canAddToAnki) keys.push('⇧↵ add to Anki');
+  if (canSpeak) keys.push('⌘↵ listen');
+  if (!canAddToAnki) keys.push('⇥ switch mode');
+  return [...keys, 'esc close'].join('   ');
 }
