@@ -2,7 +2,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { experimental_decide } from 'ai';
 import { Experimental_DecisionMockModelV4 } from 'ai/test';
-import { PROVIDERS, buildDecision, buildRequest, hasApiKey, readDecision } from '../../../src/main/lib/ai.js';
+import {
+  PROVIDERS,
+  buildDecision,
+  buildRequest,
+  decisionKey,
+  hasApiKey,
+  readDecision,
+  requestKey,
+} from '../../../src/main/lib/ai.js';
 import { OTHER_LANGUAGE } from '../../../src/main/lib/prompts.js';
 
 const settings = {
@@ -54,6 +62,35 @@ describe('buildRequest', () => {
       assert.equal(request.providerOptions, provider.providerOptions);
     });
   }
+});
+
+describe('requestKey', () => {
+  it('is the same for the same request', () => {
+    assert.equal(requestKey('translate', 'oi', settings), requestKey('translate', 'oi', { ...settings }));
+  });
+
+  it('changes with the mode, the text, the languages and the provider', () => {
+    const key = requestKey('translate', 'oi', settings);
+    assert.notEqual(requestKey('explain', 'oi', settings), key);
+    assert.notEqual(requestKey('translate', 'olá', settings), key);
+    assert.notEqual(requestKey('translate', 'oi', { ...settings, secondLanguage: 'French' }), key);
+    assert.notEqual(requestKey('translate', 'oi', { ...settings, mainLanguage: 'Spanish' }), key);
+    assert.notEqual(requestKey('translate', 'oi', { ...settings, provider: 'google' }), key);
+  });
+
+  it('ignores settings that do not change the answer', () => {
+    assert.equal(requestKey('translate', 'oi', { ...settings, theme: 'dark' }), requestKey('translate', 'oi', settings));
+  });
+});
+
+describe('decisionKey', () => {
+  it('changes with the second languages, since they are the choices', () => {
+    assert.notEqual(decisionKey('hi', { ...settings, secondLanguages: ['English', 'French'] }), decisionKey('hi', settings));
+  });
+
+  it('is not the key of a request', () => {
+    assert.notEqual(decisionKey('oi', settings), requestKey('translate', 'oi', settings));
+  });
 });
 
 describe('buildDecision', () => {

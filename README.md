@@ -11,6 +11,8 @@ A Spotlight-like launcher for learning a second language. Double-tap **⌘** to 
 - **Translate**: say it in your language, get natural ways to say it in the other.
 - **Explain**: paste a word or sentence, get what it means.
 - **Listen**: hear any answer read aloud by a macOS voice (pick one for each language in Settings).
+- **History**: your last answers show under the modes while nothing is typed. Click one (or ↓ to it and ↵) to see it again.
+- **Cache**: asking the same thing again answers instantly, without calling the AI. Turn it off or clear it in Settings.
 - **Real Time Mode** (optional, in Settings): finds the language you type in. Your main language goes to Translate, a second language to Explain.
 
 Works with OpenAI, Claude or Gemini. Can send translations to Anki via [AnkiConnect](https://ankiweb.net/shared/info/2055492159).

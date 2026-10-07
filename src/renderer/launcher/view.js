@@ -43,8 +43,23 @@ export const markdown = (text) =>
     .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/\n/g, '<br>');
 
+// The line under each history entry: the first phrase for Translate, the meaning for Explain.
+export const historyPreview = ({ mode, output }) =>
+  (mode === 'translate' && output.items[0]?.text) || output.summary.split('\n')[0];
+
+// "now", "5 min ago", "3 h ago", "2 d ago"
+export function timeAgo(at, now = Date.now()) {
+  const minutes = Math.floor((now - at) / 60_000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  return `${Math.floor(hours / 24)} d ago`;
+}
+
 // The keyboard shortcuts shown at the bottom.
-export function hint({ step, selected, canAddToAnki, canSpeak }) {
+export function hint({ step, selected, inHistory, canAddToAnki, canSpeak }) {
+  if (step === 'pick' && inHistory) return '↑↓ select   ↵ open   esc close';
   if (step === 'pick') return '↑↓ language   ←→ mode   ↵ ask   esc close';
   if (selected < 0) return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';
   const keys = ['↑↓ select', '↵ copy'];

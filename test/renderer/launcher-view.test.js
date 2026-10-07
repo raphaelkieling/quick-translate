@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { MODE_IDS, ankiCard, direction, forLanguage, hint, languages, markdown } from '../../src/renderer/launcher/view.js';
+import {
+  MODE_IDS,
+  ankiCard,
+  direction,
+  forLanguage,
+  hint,
+  historyPreview,
+  languages,
+  markdown,
+  timeAgo,
+} from '../../src/renderer/launcher/view.js';
 import { MODES as PROMPT_MODES } from '../../src/main/lib/prompts.js';
 
 const settings = { mainLanguage: 'Portuguese (Brazil)', secondLanguage: 'English' };
@@ -72,5 +82,34 @@ describe('hint', () => {
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: true }), /add to Anki/);
     assert.match(hint({ step: 'ask', selected: 0, canSpeak: true }), /⌘↵ listen/);
     assert.doesNotMatch(hint({ step: 'ask', selected: 0, canSpeak: false }), /listen/);
+    assert.match(hint({ step: 'pick', selected: -1, inHistory: true }), /↵ open/);
+  });
+});
+
+describe('historyPreview', () => {
+  const output = { summary: 'A wish of **good luck**.\nUsed in theater.', items: [{ text: 'Break a leg!', note: '' }] };
+
+  it('shows the first phrase for Translate', () => {
+    assert.equal(historyPreview({ mode: 'translate', output }), 'Break a leg!');
+  });
+
+  it('shows the first line of the meaning for Explain', () => {
+    assert.equal(historyPreview({ mode: 'explain', output }), 'A wish of **good luck**.');
+  });
+
+  it('falls back to the summary when there are no phrases', () => {
+    assert.equal(historyPreview({ mode: 'translate', output: { ...output, items: [] } }), 'A wish of **good luck**.');
+  });
+});
+
+describe('timeAgo', () => {
+  const now = Date.UTC(2026, 0, 10);
+  const minute = 60_000;
+
+  it('rounds down to minutes, hours or days', () => {
+    assert.equal(timeAgo(now - 30_000, now), 'now');
+    assert.equal(timeAgo(now - 5 * minute, now), '5 min ago');
+    assert.equal(timeAgo(now - 3 * 60 * minute - 1, now), '3 h ago');
+    assert.equal(timeAgo(now - 2 * 24 * 60 * minute, now), '2 d ago');
   });
 });

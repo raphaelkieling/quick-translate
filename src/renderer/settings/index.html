@@ -34,6 +34,15 @@
             <input name="realtimeMode" type="checkbox" />
             Real Time Mode: pick it from what I type
           </label>
+          <label class="checkbox" title="Asking the same text in the same mode and language reuses the answer, without calling the AI">
+            <input name="cacheEnabled" type="checkbox" />
+            Cache answers: the same request answers instantly
+          </label>
+          <div class="saved-data">
+            <span id="saved-data"></span>
+            <button id="clear-cache" type="button" class="link">Clear cache</button>
+            <button id="clear-history" type="button" class="link">Clear history</button>
+          </div>
         </fieldset>
 
         <fieldset>

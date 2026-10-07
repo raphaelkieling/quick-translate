@@ -60,6 +60,10 @@ export function buildRequest(modeId, text, settings) {
   };
 }
 
+// The same text asked the same way gets the same answer: the key of the request in the cache.
+export const requestKey = (modeId, text, { provider, mainLanguage, secondLanguage }) =>
+  JSON.stringify(['ask', provider, PROVIDERS[provider]?.model, modeId, mainLanguage, secondLanguage, text]);
+
 export async function ask(modeId, text, settings) {
   const { output } = await generateText({
     ...buildRequest(modeId, text, settings),
@@ -86,6 +90,10 @@ export function readDecision(answers, { mainLanguage, secondLanguage, secondLang
   if (secondLanguages.includes(written)) return { mode: 'explain', language: written };
   return null;
 }
+
+// The same for Real Time Mode. The decision also depends on the second languages (see readDecision).
+export const decisionKey = (text, { provider, mainLanguage, secondLanguage, secondLanguages }) =>
+  JSON.stringify(['decide', provider, PROVIDERS[provider]?.decisionModel, mainLanguage, secondLanguage, secondLanguages, text]);
 
 export async function decideMode(text, settings) {
   const { answers } = await experimental_decide({

@@ -203,6 +203,34 @@ body.launcher::after {
   content: '✦ ';
 }
 
+/* History: the last answers under the modes, while nothing is typed */
+.section-title {
+  padding: 4px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--header);
+  color: var(--muted);
+  font: 11px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#history-list {
+  /* About 4 entries, then it scrolls */
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#history-list .text,
+#history-list .note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#history-list .tag {
+  text-transform: none;
+}
+
 .list .text {
   font-size: 14px;
 }
@@ -324,7 +352,6 @@ body.launcher::after {
 #anki.error {
   color: var(--error);
 }
-
 #deciding {
   flex-shrink: 0;
   width: 12px;
@@ -635,7 +662,8 @@ body.launcher::after {
   min-width: 0;
 }
 
-.anki-status {
+.anki-status,
+.saved-data {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -665,8 +693,14 @@ button.link {
   cursor: pointer;
 }
 
-button.link:hover {
+button.link:hover:not(:disabled) {
   text-decoration: underline;
+}
+
+button.link:disabled {
+  color: var(--muted);
+  opacity: 0.6;
+  cursor: default;
 }
 
 .actions {

@@ -1,6 +1,17 @@
 import { boldToHtml, stripBold } from '../../shared/text.js';
 import { loadVoices, pickVoice, speak, stopSpeaking } from '../speech.js';
-import { MODES, MODE_IDS, ankiCard, direction, forLanguage, hint, languages, markdown } from './view.js';
+import {
+  MODES,
+  MODE_IDS,
+  ankiCard,
+  direction,
+  forLanguage,
+  hint,
+  historyPreview,
+  languages,
+  markdown,
+  timeAgo,
+} from './view.js';
 
 // Feather icons (MIT), https://feathericons.com
 const ICONS = {
@@ -24,6 +35,7 @@ let question = ''; // the text that was asked
 let answerMode = ''; // the mode of the answer on screen (Tab can change `mode` afterwards)
 let summary = '';
 let items = [];
+let cached = false; // the answer on screen came from the cache
 let added = new Set(); // items already added to Anki
 let selected = -1; // highlighted item, -1 for none
 let copied = -1; // item that was just copied
@@ -34,6 +46,8 @@ let decision = null; // Real Time Mode: { text, result, pending } of the last te
 let decideTimer = 0;
 let pickedByHand = false; // choosing a mode yourself turns Real Time Mode off until the text is cleared
 let autoPicked = false; // the highlighted mode was picked by Real Time Mode
+let history = []; // the last answers, newest first (see src/main/lib/history.js)
+let historySelected = -1; // highlighted history entry while picking, -1 when it's a mode
 
 // --- Rendering ---
 
@@ -107,7 +121,7 @@ function languageRow(lang) {
       listItem(
         direction(id, languageSettings),
         MODES[id].description(languageSettings),
-        lang === language && id === mode ? `cell selected${autoPicked ? ' auto' : ''}` : 'cell',
+        lang === language && id === mode && historySelected < 0 ? `cell selected${autoPicked ? ' auto' : ''}` : 'cell',
         () => chooseMode(id, lang),
         el('span', 'tag', MODES[id].label),
         'div',
@@ -116,6 +130,21 @@ function languageRow(lang) {
   );
   row.querySelector('.auto')?.setAttribute('title', 'Picked by Real Time Mode');
   return row;
+}
+
+// Shown under the modes until you type something.
+const showsHistory = () => step === 'pick' && !input.value.trim() && history.length > 0;
+
+function historyRow(entry, i) {
+  const li = listItem(
+    entry.text,
+    historyPreview(entry),
+    i === historySelected ? 'selected' : '',
+    () => openHistory(i),
+    el('span', 'tag', timeAgo(entry.at)),
+  );
+  li.title = direction(entry.mode, forLanguage(settings, entry.language));
+  return li;
 }
 
 function render() {
@@ -130,6 +159,10 @@ function render() {
   $('modes').hidden = !picking;
   $('modes').replaceChildren(...languages(settings).map(languageRow));
   $('modes').querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+
+  $('history').hidden = !showsHistory();
+  $('history-list').replaceChildren(...(showsHistory() ? history.map(historyRow) : []));
+  $('history-list').children[historySelected]?.scrollIntoView({ block: 'nearest' });
 
   $('status').hidden = picking || !status;
   $('status').textContent = status?.text ?? '';
@@ -149,16 +182,25 @@ function render() {
   $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
 
   $('deciding').hidden = !decision?.pending;
-  $('hint').textContent = hint({ step, selected, canAddToAnki: canAddToAnki(), canSpeak: Boolean(voice()) });
+  $('hint').textContent = hint({
+    step,
+    selected,
+    inHistory: historySelected >= 0,
+    canAddToAnki: canAddToAnki(),
+    canSpeak: Boolean(voice()),
+  });
   $('anki').hidden = picking || !anki;
   $('anki').textContent = anki?.text ?? '';
   $('anki').className = anki?.error ? 'error' : '';
+  $('cached').hidden = picking || !cached || Boolean(anki);
 }
 
 // --- Actions ---
 
-function reset(newSettings) {
+function reset(newSettings, newHistory) {
   settings = newSettings;
+  history = newHistory;
+  historySelected = -1;
   step = 'pick';
   mode = settings.defaultMode;
   language = settings.secondLanguage;
@@ -166,6 +208,7 @@ function reset(newSettings) {
   anki = null;
   summary = '';
   items = [];
+  cached = false;
   selected = -1;
   copied = -1;
   stopItem();
@@ -203,6 +246,7 @@ function backToModes() {
 
 function nextMode(offset) {
   pickByHand();
+  historySelected = -1;
   const index = MODE_IDS.indexOf(mode) + offset;
   mode = MODE_IDS[(index + MODE_IDS.length) % MODE_IDS.length];
   selected = -1; // so Enter asks again in the new mode
@@ -215,6 +259,24 @@ function nextLanguage(offset) {
   const index = list.indexOf(language) + offset;
   language = list[(index + list.length) % list.length];
   render();
+}
+
+// In the history: -1 goes back to the modes.
+function selectHistory(i) {
+  historySelected = Math.max(-1, Math.min(i, history.length - 1));
+  render();
+}
+
+// ↓ on the last language goes into the history, when it's shown.
+function moveDown() {
+  if (historySelected >= 0) selectHistory(historySelected + 1);
+  else if (showsHistory() && language === languages(settings).at(-1)) selectHistory(0);
+  else nextLanguage(1);
+}
+
+function moveUp() {
+  if (historySelected >= 0) selectHistory(historySelected - 1);
+  else nextLanguage(-1);
 }
 
 function selectItem(i) {
@@ -233,6 +295,7 @@ async function submit() {
   anki = null;
   summary = '';
   items = [];
+  cached = false;
   selected = -1;
   render();
 
@@ -244,21 +307,48 @@ async function submit() {
     render();
   }
 
-  const { output, error } = await window.api.ask(mode, text, language);
+  const response = await window.api.ask(mode, text, language);
   if (id !== requestId) return;
 
-  if (error) {
-    status = { text: error, error: true };
+  if (response.error) {
+    status = { text: response.error, error: true };
   } else {
     status = null;
-    question = text;
-    answerMode = mode;
-    summary = output.summary;
-    items = output.items;
-    added = new Set();
-    selected = items.length ? 0 : -1;
+    showAnswer(text, response.output, response.cached);
+    window.api.getHistory().then((list) => {
+      history = list;
+    });
   }
   render();
+}
+
+function showAnswer(text, output, fromCache) {
+  step = 'ask';
+  question = text;
+  answerMode = mode;
+  summary = output.summary;
+  items = output.items;
+  cached = fromCache;
+  added = new Set();
+  selected = items.length ? 0 : -1;
+}
+
+// Shows a past answer again, as if it was just asked.
+function openHistory(i) {
+  const entry = history[i];
+  requestId++; // ignore a request still running
+  clearTimeout(decideTimer);
+  stopItem();
+  pickByHand(); // keep its mode when asking again
+  mode = entry.mode;
+  language = entry.language;
+  historySelected = -1;
+  input.value = entry.text;
+  status = null;
+  anki = null;
+  showAnswer(entry.text, entry.output, false);
+  render();
+  input.focus();
 }
 
 async function addItemToAnki(i) {
@@ -367,10 +457,11 @@ function decideSoon(wait) {
 // While picking, the bare arrows choose the mode: ⌥ and ⌘ arrows still move the cursor in the text.
 function onPickKey(key, withModifier) {
   if (withModifier && key.startsWith('Arrow')) return false;
-  if (key === 'ArrowDown') nextLanguage(1);
-  else if (key === 'ArrowUp') nextLanguage(-1);
+  if (key === 'ArrowDown') moveDown();
+  else if (key === 'ArrowUp') moveUp();
   else if (key === 'ArrowRight' || key === 'Tab') nextMode(1);
   else if (key === 'ArrowLeft') nextMode(-1);
+  else if (key === 'Enter' && historySelected >= 0) openHistory(historySelected);
   else if (key === 'Enter') submit();
   else return false;
   return true;
@@ -400,6 +491,8 @@ document.addEventListener('keydown', (e) => {
 input.addEventListener('input', (e) => {
   // Changing the text shows the modes again, to ask in any of them.
   if (step === 'ask') backToModes();
+  historySelected = -1;
+  render(); // the history shows only while the text is empty
   decideSoon(e.inputType === 'insertFromPaste' ? 0 : 300);
 });
 
@@ -410,7 +503,7 @@ $('badge').onclick = () => {
 $('settings').onclick = () => window.api.openSettings();
 
 // Keep the focus in the input when clicking around.
-for (const id of ['badge', 'settings', 'modes', 'items']) {
+for (const id of ['badge', 'settings', 'modes', 'history', 'items']) {
   $(id).addEventListener('mousedown', (e) => e.preventDefault());
 }
 window.addEventListener('focus', () => input.focus());

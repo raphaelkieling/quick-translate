@@ -144,6 +144,21 @@ function voicePicker(language) {
   return [select, listen];
 }
 
+// --- History and cache: cleared right away, without Save ---
+
+const clearCache = document.getElementById('clear-cache');
+const clearHistory = document.getElementById('clear-history');
+
+async function renderSavedData() {
+  const [cacheSize, history] = await Promise.all([window.api.getCacheSize(), window.api.getHistory()]);
+  document.getElementById('saved-data').textContent = `${cacheSize} cached · ${history.length} in history`;
+  clearCache.disabled = cacheSize === 0;
+  clearHistory.disabled = history.length === 0;
+}
+
+clearCache.addEventListener('click', () => window.api.clearCache().then(renderSavedData));
+clearHistory.addEventListener('click', () => window.api.clearHistory().then(renderSavedData));
+
 window.api.getSettings().then((settings) => {
   for (const [name, value] of Object.entries(settings)) {
     const field = fields[name];
@@ -158,6 +173,7 @@ window.api.getSettings().then((settings) => {
   chosenVoices = { ...settings.voices };
   renderLanguages(settings.secondLanguages, settings.secondLanguage);
   checkAnki();
+  renderSavedData();
   loadVoices().then((voices) => {
     systemVoices = voices;
     renderLanguages(secondLanguages(), currentLanguage());
@@ -180,6 +196,7 @@ form.addEventListener('submit', async (e) => {
   const values = Object.fromEntries([...new FormData(form)].map(([name, value]) => [name, value.trim()]));
   values.ankiEnabled = fields.ankiEnabled.checked;
   values.realtimeMode = fields.realtimeMode.checked;
+  values.cacheEnabled = fields.cacheEnabled.checked;
   values.openAtLogin = fields.openAtLogin.checked;
   values.secondLanguages = secondLanguages();
   values.secondLanguage = currentLanguage();

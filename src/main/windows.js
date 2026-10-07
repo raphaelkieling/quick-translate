@@ -1,6 +1,6 @@
 import { app, BrowserWindow, nativeTheme, screen } from 'electron';
 import path from 'node:path';
-import { loadSettings } from './store.js';
+import { history, loadSettings } from './store.js';
 
 const LAUNCHER_WIDTH = 640;
 const preload = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
@@ -39,7 +39,7 @@ export function showLauncher() {
     Math.round(workArea.x + (workArea.width - LAUNCHER_WIDTH) / 2),
     Math.round(workArea.y + workArea.height * 0.2),
   );
-  launcher.webContents.send('launcher:show', loadSettings());
+  launcher.webContents.send('launcher:show', loadSettings(), history.list());
   app.show();
   launcher.show();
   app.focus({ steal: true });
@@ -75,7 +75,7 @@ export function openSettings() {
 
   settingsWindow = new BrowserWindow({
     width: 760,
-    height: 600,
+    height: 640,
     useContentSize: true,
     title: 'QuickTranslate Settings',
     show: false,

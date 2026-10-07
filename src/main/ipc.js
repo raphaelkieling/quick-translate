@@ -1,8 +1,8 @@
 import { app, clipboard, ipcMain } from 'electron';
-import { ask, decideMode } from './lib/ai.js';
+import { ask, decideMode, decisionKey, requestKey } from './lib/ai.js';
 import { addCardForLanguage, getDecks } from './lib/anki.js';
 import { updateTrayMenu } from './menu.js';
-import { loadSettings, saveSettings } from './store.js';
+import { cache, history, loadSettings, saveSettings } from './store.js';
 import { applyTheme, hideLauncher, openSettings, resizeLauncher } from './windows.js';
 
 // Errors are sent back as `{ error }`: the windows show the message.
@@ -19,6 +19,17 @@ const settingsFor = (language) => {
   const settings = loadSettings();
   return settings.secondLanguages.includes(language) ? { ...settings, secondLanguage: language } : settings;
 };
+
+// Reuses the answer to the same request when the cache is on (Settings). `cached` tells the launcher.
+async function withCache(key, settings, run) {
+  if (settings.cacheEnabled) {
+    const value = cache.get(key);
+    if (value !== undefined) return { value, cached: true };
+  }
+  const value = await run();
+  if (settings.cacheEnabled) cache.set(key, value);
+  return { value, cached: false };
+}
 
 // Messages from the windows (see src/preload/index.cjs).
 export function registerIpc() {
@@ -40,9 +51,28 @@ export function registerIpc() {
 
   ipcMain.handle(
     'ai:ask',
-    orError(async (_event, mode, text, language) => ({ output: await ask(mode, text, settingsFor(language)) })),
+    orError(async (_event, mode, text, language) => {
+      const settings = settingsFor(language);
+      const { value: output, cached } = await withCache(requestKey(mode, text, settings), settings, () =>
+        ask(mode, text, settings),
+      );
+      history.add({ mode, language: settings.secondLanguage, text, output });
+      return { output, cached };
+    }),
   );
-  ipcMain.handle('ai:decide', orError(async (_event, text) => ({ decision: await decideMode(text, loadSettings()) })));
+  ipcMain.handle(
+    'ai:decide',
+    orError(async (_event, text) => {
+      const settings = loadSettings();
+      const { value } = await withCache(decisionKey(text, settings), settings, () => decideMode(text, settings));
+      return { decision: value };
+    }),
+  );
+
+  ipcMain.handle('history:get', () => history.list());
+  ipcMain.handle('history:clear', () => history.clear());
+  ipcMain.handle('cache:size', () => cache.size());
+  ipcMain.handle('cache:clear', () => cache.clear());
 
   ipcMain.handle('anki:decks', orError(async () => ({ decks: await getDecks() })));
   ipcMain.handle(
