@@ -13,6 +13,10 @@ describe('MODES', () => {
       assert.doesNotMatch(instructions, /undefined/);
       assert.equal(mode.prompt('  hello  ', settings), '  hello  ');
     });
+
+    it(`${id}: asks to keep the **marked** words marked`, () => {
+      assert.match(mode.instructions(settings), /\*\*double asterisks\*\*/);
+    });
   }
 });
 

@@ -48,6 +48,14 @@ describe('anki', () => {
     assert.deepEqual(note.tags, ['quicktranslate']);
   });
 
+  it('keeps **marked** words bold on the card', async () => {
+    const requests = fakeAnki(FIELDS);
+    await addCard('English', 'Eu **esbarrei** nele', 'I **ran into** him');
+
+    const { fields } = requests.find((r) => r.action === 'addNote').params.note;
+    assert.deepEqual(fields, { Front: 'Eu <b>esbarrei</b> nele', Back: 'I <b>ran into</b> him' });
+  });
+
   it('explains when the note type is missing', async () => {
     fakeAnki({ modelFieldNames: { result: null, error: 'model was not found' } });
     await assert.rejects(addCard('English', 'a', 'b'), /no "Basic \(and reversed card\)" note type/);

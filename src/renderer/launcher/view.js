@@ -1,4 +1,4 @@
-import { escapeHtml, shortName } from '../../shared/text.js';
+import { boldToHtml, shortName } from '../../shared/text.js';
 
 // What each mode looks like in the launcher. The prompts are in src/main/lib/prompts.js.
 export const MODES = {
@@ -29,8 +29,7 @@ export const ankiCard = (answerMode, question, item) =>
 
 // Just enough Markdown for the summary: **bold**, *italic*, `code` and line breaks.
 export const markdown = (text) =>
-  escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  boldToHtml(text)
     .replace(/(^|[^\w*])[*_](?!\s)(.+?)(?<!\s)[*_](?![\w*])/g, '$1<em>$2</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/\n/g, '<br>');

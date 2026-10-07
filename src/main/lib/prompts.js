@@ -9,6 +9,9 @@ import { z } from 'zod';
  *
  * `settings.mainLanguage` is your native language and `settings.secondLanguage`
  * is the one you are learning (both set in the Settings window).
+ *
+ * You can mark words like **this**. The AI marks the same words (or their translation)
+ * in the answers: the launcher shows them in bold and Anki cards keep them bold.
  */
 export const MODES = {
   // You type a word, expression or sentence and get what it means, in your main language.
@@ -24,6 +27,12 @@ Write the summary in ${mainLanguage}:
 
 As items, give 3 short and natural example sentences in ${secondLanguage} that use it.
 Each note is the translation of that example in ${mainLanguage}.
+
+They may send a sentence with a word or expression marked like **this**: that is the part they want to understand, and the rest of the sentence is its context.
+- The summary explains what the marked part means in that sentence.
+- The first item is their own sentence, and its note is its translation. Then give the 3 examples.
+- In every item, wrap the marked word or expression in **double asterisks**, and wrap its translation in the note too.
+Only use **double asterisks** in the items when the user marked something.
 `.trim(),
     prompt: (text) => text,
   },
@@ -42,6 +51,10 @@ As items, give 5 different ways to say it in ${secondLanguage}, from the most co
 
 In the summary, give one short tip in ${mainLanguage} (for example, a common mistake to avoid).
 Leave the summary empty if there is nothing useful to add.
+
+They may mark words like **this** to show the part they care about.
+Then, in every item, wrap the words that say it in **double asterisks**.
+Only use **double asterisks** in the items when the user marked something.
 `.trim(),
     prompt: (text) => text,
   },
@@ -56,8 +69,8 @@ export const answerSchema = z.object({
   summary: z.string().describe('Short paragraph shown above the list. Can be an empty string.'),
   items: z.array(
     z.object({
-      text: z.string().describe('The sentence or phrase itself. This is what gets copied.'),
-      note: z.string().describe('Short note shown under the text.'),
+      text: z.string().describe('The sentence or phrase itself. This is what gets copied. Can have **marked** words.'),
+      note: z.string().describe('Short note shown under the text. Can have **marked** words.'),
     }),
   ),
 });

@@ -1,4 +1,4 @@
-import { escapeHtml } from '../../shared/text.js';
+import { boldToHtml } from '../../shared/text.js';
 
 // Talks to Anki through the AnkiConnect add-on: https://ankiweb.net/shared/info/2055492159
 const ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
@@ -35,8 +35,8 @@ export async function addCard(deck, front, back) {
       deckName: deck,
       modelName: NOTE_TYPE,
       fields: {
-        [frontField]: escapeHtml(front),
-        [backField]: escapeHtml(back),
+        [frontField]: boldToHtml(front),
+        [backField]: boldToHtml(back),
       },
       tags: ['quicktranslate'],
     },

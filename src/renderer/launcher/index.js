@@ -1,3 +1,4 @@
+import { boldToHtml, stripBold } from '../../shared/text.js';
 import { MODES, MODE_IDS, ankiCard, direction, hint, markdown } from './view.js';
 
 // Feather icons (MIT), https://feathericons.com
@@ -33,10 +34,15 @@ function el(tag, className, text) {
   return node;
 }
 
+// The text and the note can have **bold** words (see src/main/lib/prompts.js).
 function listItem(text, note, className, onClick, aside) {
   const li = el('li', className);
   const body = el('div', 'body');
-  body.append(el('div', 'text', text), el('div', 'note', note));
+  const textNode = el('div', 'text');
+  const noteNode = el('div', 'note');
+  textNode.innerHTML = boldToHtml(text);
+  noteNode.innerHTML = boldToHtml(note);
+  body.append(textNode, noteNode);
   li.append(body, aside);
   li.onclick = onClick;
   return li;
@@ -209,7 +215,7 @@ async function addItemToAnki(i) {
 }
 
 function copyItem(i) {
-  window.api.copy(items[i].text);
+  window.api.copy(stripBold(items[i].text));
   selected = i;
   copied = i;
   render();

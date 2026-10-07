@@ -30,11 +30,11 @@ describe('ankiCard', () => {
 
 describe('markdown', () => {
   it('formats bold, italic, code and line breaks', () => {
-    assert.equal(markdown('**a** *b* _c_ `d`\ne'), '<strong>a</strong> <em>b</em> <em>c</em> <code>d</code><br>e');
+    assert.equal(markdown('**a** *b* _c_ `d`\ne'), '<b>a</b> <em>b</em> <em>c</em> <code>d</code><br>e');
   });
 
   it('escapes HTML before formatting', () => {
-    assert.equal(markdown('<img src=x> **ok**'), '&lt;img src=x&gt; <strong>ok</strong>');
+    assert.equal(markdown('<img src=x> **ok**'), '&lt;img src=x&gt; <b>ok</b>');
   });
 
   it('leaves snake_case and lone asterisks alone', () => {
