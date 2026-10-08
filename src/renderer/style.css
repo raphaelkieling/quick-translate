@@ -81,6 +81,12 @@ body.launcher::after {
   padding: 10px 10px 10px 14px;
 }
 
+/* Up in the text: the arrows move the cursor (↑ from the modes, or a click) */
+.bar.editing {
+  background: var(--selected);
+  box-shadow: inset 2px 0 var(--accent);
+}
+
 .bar input {
   flex: 1;
   min-width: 0;
@@ -180,8 +186,7 @@ body.launcher::after {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding: 7px 14px 7px 12px;
-  border-left: 2px solid transparent;
+  padding: 7px 14px;
 }
 
 /* Three modes side by side are narrow: the mode name goes on top */
@@ -200,10 +205,23 @@ body.launcher::after {
   box-shadow: inset 1px 0 var(--line);
 }
 
+/* The blue bar is drawn inside the cell, after the line between the modes */
 #modes .cell.selected {
-  border-left-color: var(--accent);
+  --bar: var(--accent);
   background: var(--selected);
-  box-shadow: none;
+  box-shadow: inset 2px 0 var(--bar);
+}
+
+#modes .cell + .cell.selected {
+  box-shadow:
+    inset 1px 0 var(--line),
+    inset 3px 0 var(--bar);
+}
+
+/* Still the chosen mode, but the arrows are in the text */
+#modes.editing .cell.selected {
+  --bar: var(--strong-line);
+  background: transparent;
 }
 
 /* Picked by Real Time Mode */

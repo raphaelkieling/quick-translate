@@ -111,6 +111,8 @@ describe('hint', () => {
     assert.match(hint({ step: 'ask', selected: 0, canSpeakText: true }), /⌘↵ listen to text/);
     assert.match(hint({ step: 'ask', selected: -1, canSpeakText: true }), /⌘↵ listen to text/);
     assert.match(hint({ step: 'pick', selected: -1, inHistory: true }), /↵ open/);
+    assert.match(hint({ step: 'pick', selected: -1, atTop: true }), /↑ edit text +↓ language +←→ mode/);
+    assert.match(hint({ step: 'pick', selected: -1, editing: true, atTop: true }), /←→ move +↓ modes/);
   });
 });
 

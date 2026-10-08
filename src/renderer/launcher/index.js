@@ -54,6 +54,7 @@ let autoPicked = false; // the highlighted mode was picked by Real Time Mode
 let history = []; // the last answers, newest first (see src/main/lib/history.js)
 let historySelected = -1; // highlighted history entry while picking, -1 when it's a mode
 let historyHovered = false; // the mouse is over the history (it opens when collapsed in Settings)
+let editing = false; // while picking, ←→ move the cursor in the text instead of choosing the mode
 
 // --- Rendering ---
 
@@ -183,7 +184,9 @@ function render() {
   $('badge').title = `${MODES[mode].label} (⌫ to change)`;
   input.placeholder = MODES[mode].placeholder(languageSettings);
 
+  $('bar').classList.toggle('editing', picking && editing);
   $('modes').hidden = !picking;
+  $('modes').classList.toggle('editing', editing);
   $('modes').replaceChildren(...languages(settings).map(languageRow));
   $('modes').querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
 
@@ -215,6 +218,8 @@ function render() {
     step,
     selected,
     inHistory: historySelected >= 0,
+    editing,
+    atTop: language === languages(settings)[0],
     canAddToAnki: canAddToAnki(),
     canSpeak: Boolean(voice()),
     canSpeakText: Boolean(textVoice()),
@@ -232,6 +237,7 @@ function reset(newSettings, newHistory) {
   history = knownModes(newHistory);
   historySelected = -1;
   historyHovered = false;
+  editing = false;
   step = 'pick';
   mode = MODES[settings.lastMode] ? settings.lastMode : 'translate';
   language = settings.secondLanguage;
@@ -256,6 +262,7 @@ function reset(newSettings, newHistory) {
 // Clicking a mode asks right away when there is something typed.
 function chooseMode(id, lang) {
   pickByHand();
+  editing = false;
   mode = id;
   language = lang;
   render();
@@ -305,9 +312,16 @@ function moveDown() {
   else nextLanguage(1);
 }
 
+// ↑ on the first language goes up to the text, ↓ comes back to the modes.
 function moveUp() {
   if (historySelected >= 0) selectHistory(historySelected - 1);
+  else if (language === languages(settings)[0]) setEditing(true);
   else nextLanguage(-1);
+}
+
+function setEditing(value) {
+  editing = value;
+  render();
 }
 
 function selectItem(i) {
@@ -507,9 +521,12 @@ function decideSoon(wait) {
 
 // Each returns true when it handled the key.
 // While picking, the bare arrows choose the mode: ⌥ and ⌘ arrows still move the cursor in the text.
+// Up in the text (`editing`), they all move the cursor, and ↓ goes back to the modes.
 function onPickKey(key, withModifier) {
   if (withModifier && key.startsWith('Arrow')) return false;
-  if (key === 'ArrowDown') moveDown();
+  if (editing && key === 'ArrowDown') setEditing(false);
+  else if (editing && key.startsWith('Arrow')) return false;
+  else if (key === 'ArrowDown') moveDown();
   else if (key === 'ArrowUp') moveUp();
   else if (key === 'ArrowRight' || key === 'Tab') nextMode(1);
   else if (key === 'ArrowLeft') nextMode(-1);
@@ -554,6 +571,10 @@ $('badge').onclick = () => {
   input.focus();
 };
 $('settings').onclick = () => window.api.openSettings();
+// Clicking the text goes up to it, to move the cursor with the arrows.
+input.addEventListener('mousedown', () => {
+  if (step === 'pick' && !editing) setEditing(true);
+});
 
 // A collapsed history opens while the mouse is over it.
 for (const [event, hovered] of [
