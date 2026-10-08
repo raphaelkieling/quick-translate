@@ -4,6 +4,7 @@ import {
   MODE_IDS,
   ankiCard,
   answersInSecondLanguage,
+  asksInSecondLanguage,
   badge,
   direction,
   forLanguage,
@@ -37,6 +38,12 @@ describe('launcher modes', () => {
     assert.equal(answersInSecondLanguage('translate', settings), true);
     assert.equal(answersInSecondLanguage('reverse', settings), false);
     assert.equal(answersInSecondLanguage('explore', settings), true);
+  });
+
+  it('knows when the text you type is in the second language', () => {
+    assert.equal(asksInSecondLanguage('translate', settings), false);
+    assert.equal(asksInSecondLanguage('reverse', settings), true);
+    assert.equal(asksInSecondLanguage('explore', settings), true);
   });
 });
 
@@ -101,6 +108,8 @@ describe('hint', () => {
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: true }), /add to Anki/);
     assert.match(hint({ step: 'ask', selected: 0, canSpeak: true }), /⌘↵ listen/);
     assert.doesNotMatch(hint({ step: 'ask', selected: 0, canSpeak: false }), /listen/);
+    assert.match(hint({ step: 'ask', selected: 0, canSpeakText: true }), /⌘↵ listen to text/);
+    assert.match(hint({ step: 'ask', selected: -1, canSpeakText: true }), /⌘↵ listen to text/);
     assert.match(hint({ step: 'pick', selected: -1, inHistory: true }), /↵ open/);
   });
 });

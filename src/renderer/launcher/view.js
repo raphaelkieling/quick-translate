@@ -46,6 +46,9 @@ export const badge = (id, settings) =>
 // The answers are in the second language: they can be read aloud (there is no voice for the main language).
 export const answersInSecondLanguage = (id, settings) => MODES[id].to(settings) === settings.secondLanguage;
 
+// The text you type is in the second language: it can be read aloud too.
+export const asksInSecondLanguage = (id, settings) => MODES[id].from(settings) === settings.secondLanguage;
+
 // Both sides of the card, always main language -> second language (Anki also creates the reversed card).
 // Translate: what you typed -> the phrase. The other way: the phrase -> what you typed.
 // Explore: the translation -> the sentence.
@@ -76,13 +79,16 @@ export function timeAgo(at, now = Date.now()) {
 }
 
 // The keyboard shortcuts shown at the bottom.
-export function hint({ step, selected, inHistory, canAddToAnki, canSpeak }) {
+// `canSpeakText`: ⌘↵ reads the text you typed (when the answers can't be read aloud).
+export function hint({ step, selected, inHistory, canAddToAnki, canSpeak, canSpeakText }) {
   if (step === 'pick' && inHistory) return '↑↓ select   ↵ open   esc close';
   if (step === 'pick') return '↑↓ language   ←→ mode   ↵ ask   esc close';
-  if (selected < 0) return '↵ ask   ⇥ switch mode   ⌫ modes   esc close';
+  const listenToText = canSpeakText ? ['⌘↵ listen to text'] : [];
+  if (selected < 0) return ['↵ ask', ...listenToText, '⇥ switch mode', '⌫ modes', 'esc close'].join('   ');
   const keys = ['↑↓ select', '↵ copy'];
   if (canAddToAnki) keys.push('⇧↵ add to Anki');
   if (canSpeak) keys.push('⌘↵ listen');
+  keys.push(...listenToText);
   if (!canAddToAnki) keys.push('⇥ switch mode');
   return [...keys, 'esc close'].join('   ');
 }

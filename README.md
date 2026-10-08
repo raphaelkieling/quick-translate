@@ -11,7 +11,7 @@ A Spotlight-like launcher for learning a second language. Double-tap **⌘** to 
 - **Translate**: say it in your language, get natural ways to say it in the other.
 - **Translate back**: paste something in the other language, get natural ways to say it in yours.
 - **Explore**: type a word in the other language, see it used in example sentences, each with a simple translation.
-- **Listen**: hear the answers in your second language read aloud by a macOS voice (pick one for each language in Settings).
+- **Listen**: hear the answers in your second language read aloud by a macOS voice (pick one for each language in Settings). When translating back, **⌘↵** reads what you typed instead.
 - The launcher opens in the mode and language you used last.
 - **History**: your last answers show under the modes while nothing is typed. Click one (or ↓ to it and ↵) to see it again.
 - **Cache**: asking the same thing again answers instantly, without calling the AI. Turn it off or clear it in Settings.

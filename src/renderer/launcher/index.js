@@ -5,6 +5,7 @@ import {
   MODE_IDS,
   ankiCard,
   answersInSecondLanguage,
+  asksInSecondLanguage,
   badge,
   direction,
   forLanguage,
@@ -24,6 +25,8 @@ const ICONS = {
   plus: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
 };
 
+const TEXT = 'text';
+
 const $ = (id) => document.getElementById(id);
 const input = $('input');
 
@@ -41,7 +44,7 @@ let cached = false; // the answer on screen came from the cache
 let added = new Set(); // items already added to Anki
 let selected = -1; // highlighted item, -1 for none
 let copied = -1; // item that was just copied
-let speaking = -1; // item being read aloud
+let speaking = -1; // item being read aloud, or TEXT for the text you typed
 let systemVoices = []; // the text to speech voices installed on the Mac
 let requestId = 0; // used to ignore answers to outdated requests
 let decision = null; // Real Time Mode: { text, result, pending } of the last text sent
@@ -85,6 +88,13 @@ const secondLanguageVoice = () => pickVoice(language, systemVoices, settings.voi
 // Only the answers in the second language are read aloud: there is no voice to pick for the main language.
 const voice = () =>
   answersInSecondLanguage(answerMode || mode, forLanguage(settings, language)) ? secondLanguageVoice() : undefined;
+
+// Translate back: the answers are in the main language, but the doubt is how to say the text you typed,
+// so ⌘↵ reads that instead.
+const textVoice = () =>
+  !voice() && asksInSecondLanguage(answerMode || mode, forLanguage(settings, language))
+    ? secondLanguageVoice()
+    : undefined;
 
 function itemButton(className, html, title, onClick) {
   const button = el('span', `item-button ${className}`);
@@ -200,6 +210,7 @@ function render() {
     inHistory: historySelected >= 0,
     canAddToAnki: canAddToAnki(),
     canSpeak: Boolean(voice()),
+    canSpeakText: Boolean(textVoice()),
   });
   $('anki').hidden = picking || !anki;
   $('anki').textContent = anki?.text ?? '';
@@ -407,6 +418,22 @@ function speakItem(i) {
   render();
 }
 
+// In the answer step the input still has the text that was asked. Press again to stop.
+function speakText() {
+  const v = textVoice();
+  if (!v) return;
+  if (speaking === TEXT) {
+    stopItem();
+  } else {
+    speaking = TEXT;
+    speak(input.value.trim(), v, () => {
+      speaking = -1;
+      render();
+    });
+  }
+  render();
+}
+
 function copyItem(i) {
   window.api.copy(stripBold(items[i].text));
   selected = i;
@@ -489,6 +516,7 @@ function onAskKey(key, shiftKey, metaKey) {
   else if (key === 'ArrowDown' && items.length) selectItem(selected + 1);
   else if (key === 'ArrowUp' && items.length) selectItem(selected - 1);
   else if (key === 'Enter' && shiftKey && selected >= 0) addItemToAnki(selected);
+  else if (key === 'Enter' && metaKey && textVoice()) speakText();
   else if (key === 'Enter' && metaKey && selected >= 0) speakItem(selected);
   else if (key === 'Enter' && selected >= 0) copyItem(selected);
   else if (key === 'Enter') submit();
