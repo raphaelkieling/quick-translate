@@ -8,6 +8,12 @@ A Spotlight-like launcher for learning a second language. Double-tap **⌘** to 
 
 **Website:** [raphaelkieling.github.io/quick-translate](https://raphaelkieling.github.io/quick-translate/)
 
+<a href="https://raphaelkieling.github.io/quick-translate/demo.mp4">
+    <img src="docs/demo.jpg" alt="QuickTranslate: “I'm **starving**, let's grab lunch” and three natural ways to say it in Spanish">
+</a>
+
+▶ [Watch the 20 s demo](https://raphaelkieling.github.io/quick-translate/demo.mp4)
+
 - **Translate**: say it in your language, get natural ways to say it in the other.
 - **Translate back**: paste something in the other language, get natural ways to say it in yours.
 - **Explore**: type a word in the other language, see it used in example sentences, each with a simple translation.
@@ -25,6 +31,8 @@ Works with OpenAI, Claude or Gemini. Can send translations to Anki via [AnkiConn
 npm install
 npm start
 ```
+
+The demo video is drawn and scored in code: `node video/render.mjs` renders [video/scene.html](video/scene.html) with headless Chrome, synthesizes the soundtrack ([video/audio.mjs](video/audio.mjs)) and writes `docs/demo.mp4`. It needs Google Chrome and ffmpeg.
 
 ## Install
 

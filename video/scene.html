@@ -1,0 +1,1487 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>QuickTranslate: 10 s demo</title>
+    <!--
+      Every frame is a pure function of time: renderFrame(t) places every element, nothing animates on its own.
+      video/render.mjs calls it for each frame and captures the page. Open this file in Chrome to scrub with ?t=4.2
+    -->
+    <style>
+      /* Same palette and type as the app and the website (docs/index.html) */
+      @font-face {
+        font-family: 'QT Serif';
+        src: url('file:///System/Library/Fonts/NewYork.ttf');
+      }
+      @font-face {
+        font-family: 'QT Serif';
+        font-style: italic;
+        src: url('file:///System/Library/Fonts/NewYorkItalic.ttf');
+      }
+      @font-face {
+        font-family: 'QT Mono';
+        src: url('file:///System/Library/Fonts/SFNSMono.ttf');
+      }
+
+      :root {
+        --bg: #0f0f11;
+        --fg: #ededea;
+        --muted: #8f8e89;
+        --line: #2a2a2e;
+        --strong-line: #44444a;
+        --field: #1a1a1d;
+        --header: #151517;
+        --accent: #0a84ff;
+        --selected: rgba(10, 132, 255, 0.18);
+        --serif: 'QT Serif', 'New York', 'Iowan Old Style', Georgia, serif;
+        --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        --mono: 'QT Mono', 'SF Mono', Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.6 var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .mono {
+        font-family: var(--mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      /* --- Camera --- */
+
+      #viewport {
+        position: absolute;
+        inset: 0;
+        perspective: 1500px;
+        overflow: hidden;
+      }
+
+      /* World origin sits at the center of the screen, objects are placed around it */
+      #world {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 0;
+        height: 0;
+        transform-style: preserve-3d;
+      }
+
+      .obj {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform-origin: 0 0;
+        transform-style: preserve-3d;
+      }
+
+      .flat {
+        transform-style: flat;
+      }
+
+      /* Screen-space glow and vignette, above the world */
+      #glow,
+      #vignette {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      #vignette {
+        background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.65) 100%);
+      }
+
+      /* --- Backdrop: the website's dot grid, far behind --- */
+
+      #backdrop {
+        width: 7200px;
+        height: 4800px;
+        background-image: radial-gradient(#2c2c31 1.6px, transparent 1.6px);
+        background-size: 36px 36px;
+      }
+
+      /* --- Wireframe cubes floating in depth --- */
+
+      .cube,
+      .cube .f {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      .cube .f {
+        left: 0;
+        top: 0;
+        border: 1px solid rgba(237, 237, 234, 0.13);
+        background: rgba(237, 237, 234, 0.015);
+      }
+
+      .cube.accent .f {
+        border-color: rgba(10, 132, 255, 0.55);
+        background: rgba(10, 132, 255, 0.04);
+      }
+
+      /* --- Keys (solid cubes) --- */
+
+      .key .f {
+        border: 1px solid var(--line);
+        background: #121215;
+      }
+
+      .key .f.front {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--strong-line);
+        background: linear-gradient(180deg, #212125, #18181b);
+        box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.35);
+      }
+
+      .key .glyph {
+        font-family: var(--sans);
+        color: var(--fg);
+      }
+
+      .key .label {
+        position: absolute;
+        right: 14px;
+        bottom: 10px;
+        font-size: 13px;
+      }
+
+      .ring {
+        border: 2px solid var(--accent);
+      }
+
+      /* --- Kinetic words --- */
+
+      .line {
+        display: block;
+        white-space: nowrap;
+        transform-style: preserve-3d;
+      }
+
+      .w {
+        display: inline-block;
+        transform-origin: 50% 80%;
+        will-change: auto;
+      }
+
+      #intro {
+        font-family: var(--serif);
+        line-height: 1.04;
+        letter-spacing: -0.02em;
+      }
+
+      #intro .l1,
+      #intro .l3 {
+        font-size: 96px;
+      }
+
+      #intro .l2 {
+        font-size: 136px;
+        font-style: italic;
+        margin: 4px 0 10px;
+      }
+
+      #intro .accent {
+        color: var(--accent);
+      }
+
+      #intro .l3 .muted {
+        color: var(--muted);
+      }
+
+      .bigword {
+        font: italic 400 400px/1 var(--serif);
+        letter-spacing: -0.03em;
+        white-space: nowrap;
+        color: transparent;
+        -webkit-text-stroke: 1.5px rgba(237, 237, 234, 0.16);
+      }
+
+      .bigword.accent {
+        -webkit-text-stroke-color: rgba(10, 132, 255, 0.45);
+      }
+
+      .tap {
+        font: italic 400 72px/1 var(--serif);
+        color: var(--fg);
+      }
+
+      /* --- Chat window: where the problem lives --- */
+
+      #chat {
+        width: 560px;
+        border: 1px solid var(--strong-line);
+        background: var(--field);
+        box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.7);
+      }
+
+      .chat-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: var(--header);
+      }
+
+      .avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff9f0a, #ff375f);
+        font-weight: 600;
+        color: white;
+      }
+
+      .chat-head .name {
+        font-weight: 600;
+        font-size: 17px;
+        line-height: 1.2;
+      }
+
+      .chat-head .status {
+        font-size: 11px;
+      }
+
+      .chat-head .time {
+        margin-left: auto;
+        font-size: 11px;
+      }
+
+      .chat-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        height: 262px;
+        padding: 22px 18px;
+      }
+
+      .msg {
+        max-width: 78%;
+        padding: 10px 16px;
+        border-radius: 20px;
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .msg.in {
+        align-self: flex-start;
+        border-bottom-left-radius: 6px;
+        background: #26262b;
+      }
+
+      .msg.out {
+        align-self: flex-end;
+        max-width: none;
+        border-bottom-right-radius: 6px;
+        background: var(--accent);
+        color: white;
+        white-space: nowrap;
+      }
+
+      .msg b {
+        font-weight: 600;
+      }
+
+      .delivered {
+        align-self: flex-end;
+        margin-top: -4px;
+        font-size: 11px;
+      }
+
+      .chat-input {
+        display: flex;
+        align-items: center;
+        margin: 0 14px 14px;
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        font-size: 17px;
+        color: var(--muted);
+      }
+
+      .caret {
+        display: inline-block;
+        width: 2px;
+        height: 1.1em;
+        margin-left: 1px;
+        vertical-align: -3px;
+        background: var(--accent);
+      }
+
+      .chat-input .caret {
+        margin: 0 2px 0 0;
+      }
+
+      /* --- Launcher (mirrors src/renderer/launcher and docs/index.html), drawn at app size and zoomed --- */
+
+      #launcherBox {
+        width: 640px;
+        zoom: 1.65;
+        border: 1px solid var(--strong-line);
+        background: var(--field);
+        box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.6);
+        font-size: 13px;
+        line-height: 1.4;
+        overflow: hidden;
+      }
+
+      #launcher .bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 10px 10px 14px;
+      }
+
+      #launcher .badge {
+        flex-shrink: 0;
+        padding: 3px 7px;
+        background: var(--accent);
+        color: white;
+        font: 600 11px var(--mono);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      #launcher .input {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: 18px;
+      }
+
+      #launcher .input .ast {
+        color: var(--muted);
+      }
+
+      #launcher .input .hl {
+        background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 100% / var(--hl, 0%) 2px;
+      }
+
+      #launcher .placeholder {
+        color: var(--muted);
+      }
+
+      #launcher .gear {
+        flex-shrink: 0;
+        display: flex;
+        padding: 5px;
+        color: var(--muted);
+      }
+
+      #launcher .gear svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      #progress {
+        height: 1px;
+        background: var(--line);
+        position: relative;
+        overflow: hidden;
+      }
+
+      #progress i {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 30%;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      }
+
+      #launcher .summary {
+        margin: 0;
+        padding: 9px 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      #launcher b {
+        font-weight: 600;
+      }
+
+      #launcher ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      #launcher li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 7px 14px 7px 12px;
+        border-left: 2px solid transparent;
+        transform-origin: 50% 0;
+      }
+
+      #launcher li + li {
+        border-top: 1px solid var(--line);
+      }
+
+      #launcher li.selected {
+        border-left-color: var(--accent);
+        background: rgba(10, 132, 255, var(--sel, 0.18));
+      }
+
+      #launcher .body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      #launcher .text {
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      #launcher .text b {
+        background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 100% / var(--ul, 0%) 1.5px;
+      }
+
+      #launcher .item-note {
+        margin-top: 1px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      #launcher .item-actions {
+        display: flex;
+        gap: 2px;
+      }
+
+      #launcher .item-button {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 5px;
+        color: var(--muted);
+        font: 11px var(--mono);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      #launcher .item-button svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      #launcher .item-button.speak {
+        position: relative;
+        margin: 0 -6px 0 -3px;
+      }
+
+      #launcher .wave {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22px;
+        height: 22px;
+        margin: -11px 0 0 -11px;
+        border: 1.5px solid var(--accent);
+        border-radius: 50%;
+        opacity: 0;
+      }
+
+      #launcher .footer {
+        padding: 5px 14px;
+        border-top: 1px solid var(--line);
+        background: var(--header);
+        color: var(--muted);
+        font: 11px/1.6 var(--mono);
+        letter-spacing: 0.02em;
+        white-space: pre;
+      }
+
+      /* Shape that turns the ⌘ key into the launcher */
+      #morph {
+        border: 1px solid var(--strong-line);
+        background: var(--field);
+      }
+
+      /* Floating note about **bold** words */
+      #note {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      #note .tag {
+        padding: 8px 14px;
+        border: 1px solid var(--accent);
+        background: rgba(10, 132, 255, 0.12);
+        color: var(--fg);
+        font: 17px var(--mono);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+
+      #note .tag span {
+        color: var(--accent);
+      }
+
+      #note .stem {
+        width: 1.5px;
+        height: 90px;
+        background: linear-gradient(var(--accent), rgba(10, 132, 255, 0.2));
+        transform-origin: 50% 0;
+      }
+
+      #toast {
+        padding: 8px 16px;
+        border: 1px solid var(--accent);
+        background: rgba(10, 132, 255, 0.14);
+        color: var(--fg);
+        font: 17px var(--mono);
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+
+      /* Chat bubbles in flight */
+      .flyer {
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+        line-height: 1.35;
+      }
+
+      .flyer b {
+        font-weight: 600;
+      }
+
+      /* --- Outro --- */
+
+      #appBody {
+        width: 300px;
+        height: 300px;
+        border: 3px solid var(--line);
+        border-radius: 68px;
+        background: var(--bg);
+        box-shadow: 0 40px 100px -30px rgba(10, 132, 255, 0.35);
+      }
+
+      #mark {
+        width: 196px;
+        height: 196px;
+      }
+
+      #mark svg {
+        width: 100%;
+        height: 100%;
+        stroke: none;
+        display: block;
+      }
+
+      #wordmark {
+        font: 600 112px/1 var(--sans);
+        letter-spacing: -0.035em;
+        white-space: nowrap;
+      }
+
+      #tagline {
+        font: 400 40px/1.2 var(--serif);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      #tagline .w {
+        margin-right: 0.24em;
+      }
+
+      #cta {
+        font-size: 17px;
+        letter-spacing: 0.12em;
+        white-space: nowrap;
+      }
+
+      #cta .k {
+        display: inline-block;
+        min-width: 1.8em;
+        padding: 0 6px;
+        border: 1px solid var(--strong-line);
+        border-bottom-width: 2px;
+        background: var(--field);
+        color: var(--fg);
+        text-align: center;
+        letter-spacing: 0;
+        font-family: var(--sans);
+      }
+
+      #cta .dot {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewport">
+      <div id="world">
+        <div id="backdrop" class="obj flat"></div>
+
+        <div id="bgStarving" class="obj bigword"></div>
+        <div id="bgHambre" class="obj bigword accent"></div>
+
+        <!-- The problem: a friend writes in Spanish -->
+        <div id="chat" class="obj flat">
+          <div class="chat-head">
+            <div class="avatar">L</div>
+            <div>
+              <div class="name">Lucía</div>
+              <div class="mono status">online</div>
+            </div>
+            <div class="mono time">12:58</div>
+          </div>
+          <div class="chat-body">
+            <div id="msgIn" class="msg in">¿Comemos algo? Estoy libre a la una 🌮</div>
+            <div id="msgOut" class="msg out">Me <b>muero de hambre</b>, ¿vamos a comer?</div>
+            <div id="delivered" class="mono delivered">Delivered ✓</div>
+          </div>
+          <div class="chat-input"><span id="chatCaret" class="caret"></span>Message Lucía…</div>
+        </div>
+
+        <div id="intro" class="obj">
+          <div class="line l1"><span class="w">How</span> <span class="w">do</span> <span class="w">I</span> <span class="w">say</span></div>
+          <div class="line l2"><span class="w">“I'm</span> <span class="w accent">starving”</span></div>
+          <div class="line l3"><span class="w muted">in</span> <span class="w">Spanish?</span></div>
+        </div>
+
+        <div id="cmdKey" class="obj key"></div>
+        <div id="ring1" class="obj ring flat"></div>
+        <div id="ring2" class="obj ring flat"></div>
+        <div id="tap1" class="obj tap">tap</div>
+        <div id="tap2" class="obj tap">tap.</div>
+        <div id="tapLabel" class="obj mono" style="font-size: 18px; letter-spacing: 0.16em; white-space: nowrap"></div>
+
+        <div id="morph" class="obj flat"></div>
+
+        <div id="launcher" class="obj flat"><div id="launcherBox">
+          <div class="bar">
+            <span id="badge" class="badge">English → Spanish</span>
+            <span id="input" class="input"></span>
+            <span class="gear">
+              <!-- Feather "settings" icon (MIT) -->
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                />
+              </svg>
+            </span>
+          </div>
+          <div id="progress"><i></i></div>
+          <p id="summary" class="summary"><b>Morirse de hambre</b> is the everyday way to exaggerate hunger, just like <em>starving</em>.</p>
+          <ul>
+            <li id="row0" class="selected">
+              <span class="item-button speak"
+                ><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg
+                ><i class="wave"></i><i class="wave"></i><i class="wave"></i
+              ></span>
+              <div class="body">
+                <div id="row0text" class="text">Me <b>muero de hambre</b>, ¿vamos a comer?</div>
+                <div class="item-note">The most common, casual way to say it.</div>
+              </div>
+              <div class="item-actions">
+                <span class="item-button"
+                  ><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>Anki</span
+                >
+                <span class="item-button"
+                  ><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg
+                ></span>
+              </div>
+            </li>
+            <li id="row1">
+              <span class="item-button speak"
+                ><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg
+              ></span>
+              <div class="body">
+                <div class="text">Tengo <b>un hambre que me muero</b>, ¿comemos algo?</div>
+                <div class="item-note">Casual and a bit more emphatic.</div>
+              </div>
+            </li>
+            <li id="row2">
+              <span class="item-button speak"
+                ><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg
+              ></span>
+              <div class="body">
+                <div class="text">Estoy <b>hambriento</b>, ¿almorzamos?</div>
+                <div class="item-note">Neutral, fine in any situation.</div>
+              </div>
+            </li>
+          </ul>
+          <div id="footer" class="footer">↑↓ select   ↵ copy   ⇧↵ add to Anki   ⌘↵ listen   esc close</div>
+        </div></div>
+
+        <div id="note" class="obj">
+          <div class="tag"><span>**word**</span> → see how it's said</div>
+          <div class="stem"></div>
+        </div>
+
+        <div id="enterKey" class="obj key"></div>
+        <div id="ring3" class="obj ring flat"></div>
+
+        <div id="toast" class="obj">✓ Copied</div>
+
+        <div id="flyOut" class="obj flat flyer">Me&nbsp;<b>muero de hambre</b>, ¿vamos a comer?</div>
+        <div id="flyIn" class="obj flat flyer"></div>
+
+        <div id="appBody" class="obj flat"></div>
+        <div id="mark" class="obj flat">
+          <svg viewBox="0 0 17 17">
+            <defs>
+              <clipPath id="frontRect"><rect x="5.40909" y="5.40909" width="11.6" height="11.6" /></clipPath>
+              <clipPath id="frontDiagonal"><polygon points="16.227,0 17,0 17,17 0,17 0,16.227" /></clipPath>
+            </defs>
+            <defs><path id="markPath" /></defs>
+            <use href="#markPath" fill="#ededea" />
+            <g clip-path="url(#frontRect)"><use href="#markPath" fill="#0a84ff" clip-path="url(#frontDiagonal)" /></g>
+            <path id="letterA" fill="white" />
+          </svg>
+        </div>
+
+        <div id="wordmark" class="obj"></div>
+        <div id="tagline" class="obj"></div>
+        <div id="cta" class="obj mono">
+          Double-tap <span class="k">⌘</span> <span class="dot">·</span> Free &amp; open source <span class="dot">·</span> macOS
+        </div>
+      </div>
+      <div id="glow"></div>
+      <div id="vignette"></div>
+    </div>
+
+    <script>
+      // ---------- Math ----------
+
+      const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x)
+      const lerp = (a, b, p) => a + (b - a) * p
+      // Progress of a window that starts at `start` and lasts `dur`
+      const prog = (t, start, dur) => clamp((t - start) / dur)
+      const ease = {
+        out3: (p) => 1 - (1 - p) ** 3,
+        in3: (p) => p ** 3,
+        io3: (p) => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2),
+        out5: (p) => 1 - (1 - p) ** 5,
+        io5: (p) => (p < 0.5 ? 16 * p ** 5 : 1 - (-2 * p + 2) ** 5 / 2),
+        outExpo: (p) => (p >= 1 ? 1 : 1 - 2 ** (-10 * p)),
+        inExpo: (p) => (p <= 0 ? 0 : 2 ** (10 * p - 10)),
+        outBack: (p, s = 1.6) => 1 + (s + 1) * (p - 1) ** 3 + s * (p - 1) ** 2,
+      }
+      // Pseudo-random but stable, so every render is the same
+      const hash = (n) => {
+        const x = Math.sin(n * 127.1 + 311.7) * 43758.5453
+        return x - Math.floor(x)
+      }
+
+      const $ = (id) => document.getElementById(id)
+
+      // Places an object in the world: centered on (x, y, z) unless the anchor says otherwise
+      function place(el, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, s = 1, o = 1, ax = 50, ay = 50, blur = 0 }) {
+        el.style.transform =
+          `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg) ` +
+          `scale(${s}) translate(${-ax}%, ${-ay}%)`
+        el.style.opacity = o
+        el.style.visibility = o <= 0.002 ? 'hidden' : 'visible'
+        el.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none'
+      }
+
+      const hide = (el) => (el.style.visibility = 'hidden')
+
+      // Splits an element's text into kinetic letters
+      function letters(el, text) {
+        el.innerHTML = [...text].map((c) => `<span class="w">${c === ' ' ? '&nbsp;' : c}</span>`).join('')
+        return [...el.children]
+      }
+
+      function words(el, text) {
+        el.innerHTML = text
+          .split(' ')
+          .map((w) => `<span class="w">${w}</span>`)
+          .join('')
+        return [...el.children]
+      }
+
+      // ---------- Camera: a smooth spline through keyframes [t, x, y, z, rx, ry, rz] ----------
+
+      const CAMERA = [
+        [0.0, 120, 30, -380, 12, -22, 2],
+        [1.25, 40, 10, -40, 5, -8, 0],
+        [2.05, 0, 10, 330, 20, 10, -1],
+        [2.8, 0, -10, 150, 10, -4, 0],
+        [4.75, 120, -40, 420, 6, -14, 0.5],
+        [5.45, 0, 0, 40, 12, 7, 0],
+        [7.2, 60, -30, 200, 5, -6, 0],
+        [8.2, -440, -20, 420, 3, 12, -0.5],
+        [8.95, -160, -60, -80, 7, 4, 0],
+        [10.0, 0, -50, 40, 2, -3, 0],
+      ]
+
+      function cameraAt(t) {
+        const k = CAMERA
+        let i = 0
+        while (i < k.length - 2 && t > k[i + 1][0]) i++
+        const [t0, t1] = [k[i][0], k[i + 1][0]]
+        const h = t1 - t0
+        const u = clamp((t - t0) / h)
+        const tangent = (j, c) => {
+          if (j === 0 || j === k.length - 1) return 0
+          return (k[j + 1][c] - k[j - 1][c]) / (k[j + 1][0] - k[j - 1][0])
+        }
+        const out = []
+        for (let c = 1; c <= 6; c++) {
+          const p0 = k[i][c]
+          const p1 = k[i + 1][c]
+          const m0 = tangent(i, c) * h
+          const m1 = tangent(i + 1, c) * h
+          const u2 = u * u
+          const u3 = u2 * u
+          out.push((2 * u3 - 3 * u2 + 1) * p0 + (u3 - 2 * u2 + u) * m0 + (-2 * u3 + 3 * u2) * p1 + (u3 - u2) * m1)
+        }
+        const [x, y, z, rx, ry, rz] = out
+        // A little handheld drift
+        return {
+          x: x + Math.sin(t * 0.9) * 6,
+          y: y + Math.sin(t * 1.3 + 1) * 4,
+          z,
+          rx: rx + Math.sin(t * 1.1 + 2) * 0.5,
+          ry: ry + Math.sin(t * 0.8) * 0.6,
+          rz,
+        }
+      }
+
+      // ---------- Building blocks ----------
+
+      // A box with six faces: wireframe cubes and keycaps. Returns a function to resize it.
+      function buildCube(el, glyph, label) {
+        el.classList.add('cube')
+        const names = ['front', 'back', 'left', 'right', 'top', 'bottom']
+        const faces = {}
+        for (const name of names) {
+          const face = document.createElement('div')
+          face.className = `f ${name}`
+          el.appendChild(face)
+          faces[name] = face
+        }
+        if (glyph) faces.front.innerHTML = `<span class="glyph">${glyph}</span>${label ? `<span class="label mono">${label}</span>` : ''}`
+        // w: side, d: depth
+        return (w, d, faceOpacity = 1) => {
+          el.style.width = el.style.height = `${w}px`
+          const set = (f, fw, fh, transform) => {
+            f.style.width = `${fw}px`
+            f.style.height = `${fh}px`
+            f.style.left = `${(w - fw) / 2}px`
+            f.style.top = `${(w - fh) / 2}px`
+            f.style.transform = transform
+            f.style.opacity = faceOpacity
+          }
+          set(faces.front, w, w, `translateZ(${d / 2}px)`)
+          set(faces.back, w, w, `rotateY(180deg) translateZ(${d / 2}px)`)
+          set(faces.left, d, w, `rotateY(-90deg) translateZ(${w / 2}px)`)
+          set(faces.right, d, w, `rotateY(90deg) translateZ(${w / 2}px)`)
+          set(faces.top, w, d, `rotateX(90deg) translateZ(${w / 2}px)`)
+          set(faces.bottom, w, d, `rotateX(-90deg) translateZ(${w / 2}px)`)
+          const hideSides = d < 0.5
+          for (const n of ['back', 'left', 'right', 'top', 'bottom']) faces[n].style.display = hideSides ? 'none' : ''
+          return faces
+        }
+      }
+
+      const CUBES = [
+        { x: -820, y: -390, z: -260, w: 120, accent: true },
+        { x: 800, y: 360, z: -160, w: 170 },
+        { x: 860, y: -420, z: -720, w: 240 },
+        { x: -760, y: 460, z: -520, w: 100 },
+        { x: 120, y: -560, z: -900, w: 150 },
+        { x: -1150, y: 40, z: -1000, w: 200, accent: true },
+      ]
+
+      const INPUT = "I'm **starving**, let's grab lunch"
+      // When each character is typed: human rhythm with small pauses after spaces
+      const TYPE_START = 2.95
+      const TYPE_END = 4.7
+      const typeTimes = (() => {
+        const gaps = [...INPUT].map((c, i) => 1 + hash(i) * 0.9 + (INPUT[i - 1] === ' ' ? 0.9 : 0) + (c === '*' ? -0.4 : 0))
+        const total = gaps.reduce((a, b) => a + b, 0)
+        let acc = 0
+        return gaps.map((g) => (acc += g) / total).map((p) => TYPE_START + p * (TYPE_END - TYPE_START))
+      })()
+
+      // When each word of the question comes in; 4 and 5 are “I'm starving”
+      const INTRO_STARTS = [0.2, 0.27, 0.34, 0.41, 0.6, 0.72, 0.92, 1.0]
+
+      const MARK =
+        'M1.54545 0C0.700815 0 0 0.700815 0 1.54545V10.0455C0 10.8901 0.700815 11.5909 1.54545 11.5909H5.40909V15.4545C5.40909 16.3084 6.10068 17 6.95455 17H15.4545C16.3084 17 17 16.3084 17 15.4545V6.95455C17 6.10068 16.3084 5.40909 15.4545 5.40909H11.5909V1.54545C11.5909 0.700815 10.8901 0 10.0455 0H1.54545ZM1.54545 1.54545H10.0455V6.18182L6.18182 10.0455H1.54545V1.54545ZM5.40909 2.70455V3.86364H3.09091V4.63636H6.95455C6.95455 5.83331 6.61732 6.55191 5.99618 7.02397C5.82635 7.15304 5.62398 7.26123 5.40154 7.35449C5.15205 7.2311 4.91771 7.09143 4.72088 6.92587C4.16677 6.45979 3.86364 5.86635 3.86364 5.40909H3.09091C3.09091 6.17969 3.5342 6.93826 4.22283 7.51749C4.26843 7.55584 4.32435 7.58639 4.37225 7.62314C3.98477 7.68505 3.56774 7.72727 3.09091 7.72727V8.5C3.95275 8.5 4.71991 8.41088 5.37589 8.19513C5.85407 8.3841 6.38426 8.5 6.95455 8.5V7.72727C6.76545 7.72727 6.58468 7.70391 6.40669 7.67596C6.42513 7.66256 6.44592 7.65201 6.46404 7.63823C7.29178 7.00915 7.72727 5.98942 7.72727 4.63636H8.5V3.86364H6.18182V2.70455H5.40909ZM10.3564 8.48189H12.0497L13.8804 13.9272H12.3712L12.0316 12.7304H10.2537L9.90359 13.9272H8.53018L10.3564 8.48189ZM11.114 9.7089L10.5178 11.7343H11.7705L11.1864 9.7089H11.114Z'
+
+      // ---------- Layout (world coordinates, origin at the screen center) ----------
+
+      const CHAT = { x: -470, y: 10 }
+      const INTRO = { x: -150, y: 0 }
+      const LAUNCHER_Y = -10
+      const ICON = { x: 0, y: -175, side: 196 }
+      const KEY = { w: 176, d: 60 }
+      const ENTER = { w: 104, d: 40 }
+
+      const S = {} // measurements and elements, filled by init()
+
+      function init() {
+        $('markPath').setAttribute('d', MARK)
+        $('letterA').setAttribute('d', MARK.slice(MARK.indexOf('M10.3564')))
+
+        S.cubes = CUBES.map((c, i) => {
+          const el = document.createElement('div')
+          el.className = `obj${c.accent ? ' accent' : ''}`
+          $('world').insertBefore(el, $('chat'))
+          const resize = buildCube(el, null)
+          resize(c.w, c.w)
+          return el
+        })
+        S.cmdKey = buildCube($('cmdKey'), '<span style="font-size: 92px; line-height: 1">⌘</span>', 'command')
+        S.enterKey = buildCube($('enterKey'), '<span style="font-size: 54px; line-height: 1">↵</span>', null)
+
+        S.introWords = [...document.querySelectorAll('#intro .w')]
+        S.bgStarving = letters($('bgStarving'), 'starving')
+        S.bgHambre = letters($('bgHambre'), 'hambre')
+        S.wordmark = letters($('wordmark'), 'QuickTranslate')
+        S.tagline = words($('tagline'), "Say it in another language without leaving what you're doing.")
+        S.tapLabel = letters($('tapLabel'), 'DOUBLE-TAP ⌘ ANYWHERE')
+
+        // Measure everything at rest: camera at identity, objects flat at z = 0, where 1 world px = 1 screen px
+        const world = $('world')
+        world.style.transform = 'none'
+        const rel = (el) => {
+          const r = el.getBoundingClientRect()
+          return { x: r.left - 960 + r.width / 2, y: r.top - 540 + r.height / 2, w: r.width, h: r.height }
+        }
+
+        place($('chat'), { x: CHAT.x, y: CHAT.y })
+        S.chat = rel($('chat'))
+        S.msgIn = rel($('msgIn'))
+        S.msgOut = rel($('msgOut'))
+
+        const launcher = $('launcherBox')
+        place($('launcher'), { x: 0, y: 0 })
+        S.zoom = 1.65
+        S.fullH = launcher.getBoundingClientRect().height
+        S.barH = launcher.querySelector('.bar').getBoundingClientRect().height + 2 * S.zoom // + borders
+        S.launcherW = launcher.getBoundingClientRect().width
+        $('input').innerHTML = `I'm **<span id="starw">starving</span>**, let's grab lunch`
+        const lr = launcher.getBoundingClientRect()
+        const sw = $('starw').getBoundingClientRect()
+        S.starX = sw.left + sw.width / 2 - (lr.left + lr.width / 2) // relative to the launcher center
+        const textRect = $('row0text').getBoundingClientRect()
+        S.row0 = { // relative to the launcher top-left, at full height
+          x: textRect.left - lr.left,
+          y: textRect.top - lr.top,
+          w: textRect.width,
+          h: textRect.height,
+        }
+        S.rowFont = parseFloat(getComputedStyle($('row0text')).fontSize) * S.zoom
+        window.sceneReady = true
+      }
+
+      // ---------- Timeline ----------
+
+      // The timeline below is written in 10 s; the video plays it this many times slower
+      const SLOWDOWN = 2
+      window.sceneDuration = 10 * SLOWDOWN
+
+      function renderFrame(videoTime) {
+        S.videoTime = videoTime // carets blink in real time
+        const t = videoTime / SLOWDOWN
+        const cam = cameraAt(t)
+        $('world').style.transform =
+          `translateZ(${cam.z}px) rotateX(${cam.rx}deg) rotateY(${cam.ry}deg) rotateZ(${cam.rz}deg) translate3d(${-cam.x}px, ${-cam.y}px, 0)`
+
+        // Backdrop and cubes, always there
+        place($('backdrop'), { z: -1100, x: 0, y: 0, o: 1 })
+        CUBES.forEach((c, i) => {
+          const appear = ease.out3(prog(t, 0.05 + i * 0.08, 0.9))
+          place(S.cubes[i], {
+            x: c.x,
+            y: c.y + Math.sin(t * 0.8 + i) * 18,
+            z: c.z - (1 - appear) * 500,
+            rx: t * (14 + i * 3) + i * 40,
+            ry: t * (22 - i * 2) + i * 25,
+            o: appear * (1 - ease.io3(prog(t, 9.0, 0.8)) * 0.6),
+          })
+        })
+
+        // Soft light that follows the action
+        const glowX = 50 + clamp(-cam.x / 30, -15, 15)
+        $('glow').style.background = `radial-gradient(ellipse 55% 50% at ${glowX}% 46%, rgba(10, 132, 255, ${0.07 + 0.04 * Math.sin(t * 1.4)}), transparent 70%)`
+
+        renderIntro(t)
+        renderKey(t)
+        renderLauncher(t)
+        renderBackgroundWords(t)
+        renderSolution(t)
+        renderOutro(t)
+      }
+
+      // 0 - 1.5 s: the problem. A message in Spanish, and the question.
+      function renderIntro(t) {
+        const chat = $('chat')
+        const chatIn = ease.out5(prog(t, 0.0, 0.8))
+        const chatOut = ease.in3(prog(t, 1.3, 0.4))
+        const chatBack = ease.out5(prog(t, 7.6, 0.5)) // comes back with the answer
+        const chatGone = ease.io3(prog(t, 8.55, 0.45))
+        if (t < 4) {
+          place(chat, {
+            x: CHAT.x - chatOut * 160,
+            y: CHAT.y,
+            z: lerp(-500, 0, chatIn) - chatOut * 500,
+            ry: lerp(35, 10, chatIn) + chatOut * 20,
+            o: chatIn * (1 - chatOut),
+          })
+        } else {
+          place(chat, {
+            x: CHAT.x,
+            y: CHAT.y,
+            z: lerp(-600, 0, chatBack) - chatGone * 300,
+            ry: lerp(-25, 0, chatBack),
+            o: chatBack * (1 - chatGone),
+          })
+        }
+        // Lucía's message pops in
+        const bubble = ease.outBack(prog(t, 0.3, 0.45))
+        const msgIn = $('msgIn')
+        msgIn.style.transform = `scale(${lerp(0.6, 1, bubble)})`
+        msgIn.style.transformOrigin = '0 100%'
+        msgIn.style.opacity = clamp(prog(t, 0.3, 0.15)) * (t >= 8.55 ? 0 : 1)
+        // The answer appears once the flying bubble lands
+        const landed = t >= 8.2 && t < 8.55
+        $('msgOut').style.opacity = landed ? 1 : 0
+        $('delivered').style.opacity = t < 8.55 ? ease.out3(prog(t, 8.25, 0.2)) : 0
+        $('chatCaret').style.opacity = Math.floor(S.videoTime * 2) % 2 === 0 ? 1 : 0
+
+        // Kinetic question, word by word
+        S.introWords.forEach((w, i) => {
+          const p = prog(t, INTRO_STARTS[i], 0.55)
+          const out = ease.in3(prog(t, 1.25 + i * 0.025, 0.35))
+          const big = i === 4 || i === 5 // “I'm starving” slams in from the camera
+          let transform
+          if (big) {
+            const e = ease.outExpo(p)
+            transform = `translate3d(0, 0, ${lerp(700, 0, e) + out * 900}px) rotateY(${lerp(-25, 0, e)}deg)`
+            w.style.filter = p < 1 && (1 - e) * 16 > 0.1 ? `blur(${(1 - e) * 16}px)` : out > 0 ? `blur(${out * 10}px)` : 'none'
+          } else {
+            const e = ease.out5(p)
+            transform = `translate3d(0, ${lerp(70, 0, e)}px, ${lerp(-120, 0, e) + out * 900}px) rotateX(${lerp(-100, 0, e)}deg)`
+            w.style.filter = (1 - e) * 10 > 0.1 ? `blur(${(1 - e) * 10}px)` : out > 0 ? `blur(${out * 10}px)` : 'none'
+          }
+          w.style.transform = transform
+          w.style.opacity = clamp(p * 3) * (1 - out)
+        })
+        place($('intro'), { x: INTRO.x, y: INTRO.y, ax: 0, o: t < 1.8 ? 1 : 0 })
+      }
+
+      // 1.45 - 2.85 s: double-tap ⌘, and the key turns into the launcher
+      function renderKey(t) {
+        const key = $('cmdKey')
+        const rise = ease.outBack(prog(t, 1.4, 0.5), 1.3)
+        const press = (start) => {
+          const down = ease.out3(prog(t, start, 0.06))
+          const up = ease.out3(prog(t, start + 0.07, 0.16))
+          return down * (1 - up)
+        }
+        const pressed = Math.max(press(1.9), press(2.12))
+        const collapse = ease.io3(prog(t, 2.3, 0.12)) // depth goes away, only the face is left
+        const depth = KEY.d * (1 - collapse)
+        if (t < 1.4 || t >= 2.42) hide(key)
+        else {
+          const faces = S.cmdKey(KEY.w, depth, clamp(prog(t, 1.4, 0.15)))
+          const lit = Math.max(pressed, 0)
+          faces.front.style.borderColor = lit > 0.05 ? `rgba(10, 132, 255, ${0.4 + lit * 0.6})` : ''
+          faces.front.style.boxShadow = `inset 0 -4px 0 rgba(0,0,0,.35), 0 0 ${lit * 60}px rgba(10, 132, 255, ${lit * 0.7})`
+          place(key, {
+            x: 0,
+            y: lerp(80, 0, rise),
+            z: lerp(-500, 0, rise) - pressed * 28 - depth / 2, // the face sits at d/2 inside: keep it steady while collapsing
+            rx: lerp(75, 0, rise),
+            ry: lerp(-30, 0, rise),
+            o: 1,
+          })
+        }
+
+        ;[
+          [$('ring1'), 1.9],
+          [$('ring2'), 2.12],
+        ].forEach(([ring, start]) => {
+          const p = prog(t, start, 0.55)
+          ring.style.width = ring.style.height = `${KEY.w}px`
+          ring.style.borderRadius = '14px'
+          place(ring, { z: -10, s: lerp(1, 2.3, ease.out3(p)), o: p > 0 && p < 1 ? (1 - p) * 0.9 : 0 })
+        })
+
+        ;[
+          [$('tap1'), 1.9, -250, -8],
+          [$('tap2'), 2.12, 250, 8],
+        ].forEach(([el, start, x, rz]) => {
+          const p = ease.outBack(prog(t, start, 0.35), 2)
+          const out = ease.in3(prog(t, 2.3, 0.25))
+          place(el, {
+            x: x + out * Math.sign(x) * 120,
+            y: lerp(-40, -150, p),
+            z: 80 + out * 300,
+            rz: lerp(0, rz, p),
+            s: lerp(0.4, 1, p),
+            o: clamp(prog(t, start, 0.08)) * (1 - out),
+          })
+        })
+
+        S.tapLabel.forEach((c, i) => {
+          const p = prog(t, 1.55 + i * 0.015, 0.25)
+          c.style.opacity = p
+          c.style.transform = `translateY(${lerp(14, 0, ease.out3(p))}px)`
+        })
+        place($('tapLabel'), { y: 165, z: 0, o: 1 - ease.in3(prog(t, 2.25, 0.2)), blur: ease.in3(prog(t, 2.25, 0.2)) * 6 })
+
+        // Shape transition: the key face grows into the launcher bar
+        const morph = $('morph')
+        const m = ease.io5(prog(t, 2.42, 0.48))
+        if (t < 2.42 || t >= 2.98) hide(morph)
+        else {
+          const w = lerp(KEY.w, S.launcherW, m)
+          const h = lerp(KEY.w, S.barH, ease.io3(prog(t, 2.42, 0.4)))
+          morph.style.width = `${w}px`
+          morph.style.height = `${h}px`
+          morph.style.borderRadius = `${lerp(0, 0, m)}px`
+          morph.style.borderColor = m < 0.6 ? 'var(--strong-line)' : 'var(--strong-line)'
+          morph.style.background = 'var(--field)'
+          morph.innerHTML =
+            m < 0.35 ? `<div style="display:flex;height:100%;align-items:center;justify-content:center;font-size:92px;opacity:${1 - m / 0.35}">⌘</div>` : ''
+          place(morph, { x: 0, y: lerp(0, LAUNCHER_Y, m), z: 0, o: 1 })
+        }
+      }
+
+      // 2.85 - 7.6 s: typing, asking, answers
+      function renderLauncher(t) {
+        const launcher = $('launcher')
+        const z = S.zoom
+        if (t < 2.82 || t > 8.3) {
+          for (const id of ['launcher', 'note', 'enterKey', 'ring3']) hide($(id))
+          return
+        }
+
+        // Height: bar only while typing, then it opens up for the answers
+        const open = ease.io5(prog(t, 5.3, 0.6))
+        const height = lerp(S.barH, S.fullH, open)
+        $('launcherBox').style.height = `${height / z}px`
+
+        const recede = ease.in3(prog(t, 7.55, 0.5))
+        place(launcher, {
+          x: 0,
+          y: LAUNCHER_Y,
+          z: -recede * 700,
+          rx: recede * 18,
+          o: clamp(prog(t, 2.82, 0.12)) * (1 - ease.io3(prog(t, 7.6, 0.35))),
+        })
+
+        // Badge
+        const badge = ease.outBack(prog(t, 2.85, 0.35), 2.2)
+        $('badge').style.transform = `scale(${lerp(0.3, 1, badge)})`
+        $('badge').style.opacity = clamp(prog(t, 2.85, 0.1))
+
+        // Typing
+        const typed = typeTimes.filter((tt) => tt <= t).length
+        const input = $('input')
+        const caretOn = typed > 0 && typed < INPUT.length ? true : Math.floor(S.videoTime * 2) % 2 === 0
+        const caret = `<span class="caret" style="opacity:${caretOn ? 1 : 0}"></span>`
+        if (typed === 0) {
+          input.innerHTML = `<span class="placeholder">${caret}What do you want to say? Write in English…</span>`
+        } else {
+          const text = INPUT.slice(0, typed)
+          const closed = typed >= 16 // the second ** is in
+          const hl = ease.out3(prog(t, typeTimes[15], 0.3)) * 100
+          let html = text
+            .replace(/&/g, '&amp;')
+            .replace(/\*/g, '<span class="ast">*</span>')
+          if (closed) html = html.replace('starving', `<span class="hl" style="--hl:${hl}%">starving</span>`)
+          input.innerHTML = html + caret
+        }
+
+        // Thinking: a light sweeps under the bar
+        const think = prog(t, 5.02, 0.5)
+        const bar = $('progress').firstElementChild
+        bar.style.left = `${lerp(-30, 100, ease.io3(think))}%`
+        bar.style.opacity = think > 0 && think < 1 ? 1 : 0
+
+        // Answers flip in one after the other
+        $('summary').style.opacity = ease.out3(prog(t, 5.5, 0.35))
+        $('summary').style.transform = `translateY(${lerp(-8, 0, ease.out3(prog(t, 5.5, 0.35)))}px)`
+        ;['row0', 'row1', 'row2'].forEach((id, i) => {
+          const p = ease.out5(prog(t, 5.6 + i * 0.11, 0.6))
+          const row = $(id)
+          row.style.transform = `perspective(700px) rotateX(${lerp(-85, 0, p)}deg) translateY(${lerp(-12, 0, p)}px)`
+          row.style.opacity = clamp(prog(t, 5.6 + i * 0.11, 0.25))
+        })
+        $('row0').style.setProperty('--sel', 0.18 * ease.out3(prog(t, 5.85, 0.3)) + 0.12 * Math.max(0, 1 - Math.abs(t - 7.35) / 0.12))
+        $('row0text').style.setProperty('--ul', `${ease.out3(prog(t, 6.15, 0.5)) * 100}%`)
+        $('row0text').style.opacity = t >= 7.55 ? 0 : 1 // the flying copy takes over
+        $('footer').style.opacity = ease.out3(prog(t, 5.7, 0.3))
+
+        // Listen: the speaker sends out waves
+        ;[...document.querySelectorAll('#row0 .wave')].forEach((wave, i) => {
+          const p = prog(t, 6.45 + i * 0.16, 0.6)
+          wave.style.opacity = p > 0 && p < 1 ? 1 - p : 0
+          wave.style.transform = `scale(${lerp(0.6, 2.6, ease.out3(p))})`
+        })
+        const speaking = t > 6.45 && t < 7.2
+        $('row0').querySelector('.speak').style.color = speaking ? 'var(--accent)' : ''
+
+        // Note about **bold** words, floating in front
+        const noteIn = prog(t, typeTimes[15] + 0.05, 0.5)
+        const noteOut = ease.in3(prog(t, 4.95, 0.3))
+        const note = $('note')
+        const tag = note.querySelector('.tag')
+        tag.style.clipPath = `inset(0 ${100 - ease.out5(prog(t, typeTimes[15] + 0.2, 0.5)) * 100}% 0 0)`
+        note.querySelector('.stem').style.transform = `scaleY(${ease.out3(noteIn)})`
+        place(note, {
+          x: S.starX,
+          y: LAUNCHER_Y - S.barH / 2 - 4,
+          z: 90,
+          ay: 100,
+          rx: lerp(-30, 0, ease.out3(noteIn)),
+          o: clamp(noteIn * 4) * (1 - noteOut),
+        })
+        if (t < typeTimes[15]) hide(note)
+
+        // ↵ to ask, then ↵ to copy
+        renderEnter(t)
+      }
+
+      function renderEnter(t) {
+        const key = $('enterKey')
+        const shows = [
+          { inAt: 4.72, press: 5.0, outAt: 5.3, x: 610, y: 40 },
+          { inAt: 7.1, press: 7.35, outAt: 7.6, x: 650, y: 10 },
+        ]
+        const s = shows.find((v) => t >= v.inAt && t < v.outAt + 0.3)
+        const ring = $('ring3')
+        if (!s) {
+          hide(key)
+          hide(ring)
+          return
+        }
+        const pin = ease.outBack(prog(t, s.inAt, 0.3), 1.8)
+        const pout = ease.in3(prog(t, s.outAt, 0.25))
+        const down = ease.out3(prog(t, s.press, 0.05))
+        const up = ease.out3(prog(t, s.press + 0.07, 0.15))
+        const pressed = down * (1 - up)
+        const faces = S.enterKey(ENTER.w, ENTER.d, 1)
+        faces.front.style.borderColor = pressed > 0.05 ? `rgba(10, 132, 255, ${0.5 + pressed * 0.5})` : ''
+        faces.front.style.boxShadow = `inset 0 -4px 0 rgba(0,0,0,.35), 0 0 ${pressed * 50}px rgba(10, 132, 255, ${pressed * 0.8})`
+        place(key, {
+          x: s.x,
+          y: s.y,
+          z: 160 - pressed * 20 - pout * 200,
+          rx: lerp(60, 0, pin) + pout * 40,
+          ry: lerp(-40, -12, pin),
+          s: lerp(0.3, 1, pin) * (1 - pout * 0.6),
+          o: clamp(prog(t, s.inAt, 0.1)) * (1 - pout),
+        })
+        const rp = prog(t, s.press, 0.5)
+        ring.style.width = ring.style.height = `${ENTER.w}px`
+        place(ring, { x: s.x, y: s.y, z: 140, ry: -12, s: lerp(1, 2.4, ease.out3(rp)), o: rp > 0 && rp < 1 ? (1 - rp) * 0.9 : 0 })
+      }
+
+      // Huge outlined words far behind: kinetic type in depth
+      function renderBackgroundWords(t) {
+        const kinetic = (el, chars, start, end, x, y, z) => {
+          if (t < start || t > end + 0.6) return hide(el)
+          place(el, { x: x - t * 25, y, z, o: 1 })
+          chars.forEach((c, i) => {
+            const pin = ease.out5(prog(t, start + i * 0.05, 0.7))
+            const pout = ease.in3(prog(t, end + i * 0.03, 0.4))
+            c.style.opacity = clamp(pin * 2) * (1 - pout)
+            c.style.transform = `translateY(${lerp(160, 0, pin) - pout * 160}px) rotateX(${lerp(-90, 0, pin) + pout * 90}deg)`
+          })
+        }
+        kinetic($('bgStarving'), S.bgStarving, 3.55, 5.15, 260, -40, -800)
+        kinetic($('bgHambre'), S.bgHambre, 5.45, 7.45, 300, 20, -800)
+      }
+
+      // 7.35 - 8.5 s: copied, and the answer flies into the chat
+      function renderSolution(t) {
+        // Copied toast
+        const toastIn = ease.outBack(prog(t, 7.4, 0.3), 2)
+        const toastOut = ease.in3(prog(t, 7.85, 0.25))
+        place($('toast'), {
+          x: 0,
+          y: LAUNCHER_Y + S.fullH / 2 + 46,
+          z: 60 + toastOut * 200,
+          s: lerp(0.5, 1, toastIn),
+          o: clamp(prog(t, 7.4, 0.1)) * (1 - toastOut),
+        })
+
+        // The row's text becomes the reply bubble
+        const fly = $('flyOut')
+        if (t < 7.55 || t >= 8.2) return hide(fly)
+        const p = ease.io5(prog(t, 7.55, 0.65))
+        const launcherTop = LAUNCHER_Y - S.fullH / 2
+        const launcherLeft = -S.launcherW / 2
+        const padX = 16
+        const padY = 10
+        const from = {
+          x: launcherLeft + S.row0.x + S.row0.w / 2,
+          y: launcherTop + S.row0.y + S.row0.h / 2,
+          w: S.row0.w + padX * 2,
+          h: S.row0.h + padY * 2,
+          font: S.rowFont,
+        }
+        const to = { x: S.msgOut.x, y: S.msgOut.y, w: S.msgOut.w, h: S.msgOut.h, font: 18 }
+        const font = lerp(from.font, to.font, p)
+        fly.style.width = `${lerp(from.w, to.w, p)}px`
+        fly.style.height = `${lerp(from.h, to.h, p)}px`
+        fly.style.padding = `0 ${padX}px`
+        fly.style.fontSize = `${font}px`
+        fly.style.borderRadius = `${lerp(0, 20, p)}px ${lerp(0, 20, p)}px ${lerp(0, 6, p)}px ${lerp(0, 20, p)}px`
+        fly.style.background = `rgba(10, 132, 255, ${lerp(0.0, 1, ease.out3(clamp(p * 1.6)))})`
+        fly.style.color = p < 0.4 ? 'var(--fg)' : 'white'
+        place(fly, {
+          x: lerp(from.x, to.x, p),
+          y: lerp(from.y, to.y, p) - Math.sin(Math.PI * p) * 60,
+          z: Math.sin(Math.PI * p) * 260,
+          ry: Math.sin(Math.PI * p) * 14,
+          rz: Math.sin(Math.PI * p) * -3,
+          o: 1,
+        })
+      }
+
+      // 8.5 - 10 s: the two bubbles become the app icon, then the name
+      function renderOutro(t) {
+        const side = ICON.side
+        const u = side / 17
+        const backSide = 11.59 * u
+        const offset = (5.795 - 8.5) * u // centers of the two squares, from the icon center
+        const p = ease.io5(prog(t, 8.55, 0.7))
+        const lift = Math.sin(Math.PI * p)
+
+        const morphBubble = (el, from, to, style) => {
+          if (t < 8.55) return el === $('flyIn') && hide(el) // before that, flyOut belongs to renderSolution
+          if (t >= 9.3) return hide(el)
+          el.style.width = `${lerp(from.w, to.w, p)}px`
+          el.style.height = `${lerp(from.h, to.h, p)}px`
+          style(el, p)
+          place(el, {
+            x: lerp(from.x, to.x, p),
+            y: lerp(from.y, to.y, p),
+            z: lift * to.z,
+            rx: lift * 20,
+            ry: lift * to.ry,
+            o: 1 - ease.io3(prog(t, 9.15, 0.15)),
+          })
+        }
+
+        const backTo = { x: ICON.x + offset, y: ICON.y + offset, w: backSide, h: backSide, z: 120, ry: -30 }
+        const frontTo = { x: ICON.x - offset, y: ICON.y - offset, w: backSide, h: backSide, z: 320, ry: 30 }
+
+        morphBubble($('flyIn'), S.msgIn, backTo, (el, q) => {
+          el.style.background = `rgba(38, 38, 43, ${1 - q})`
+          el.style.border = `${lerp(0, 1.545 * u, q)}px solid rgba(237, 237, 234, ${q})`
+          el.style.borderRadius = `${lerp(20, 1.545 * u, q)}px ${lerp(20, 1.545 * u, q)}px ${lerp(20, 1.545 * u, q)}px ${lerp(6, 1.545 * u, q)}px`
+          el.style.fontSize = '18px'
+          el.style.padding = '0 16px'
+          el.innerHTML = `<span style="opacity:${1 - clamp(q * 4)}">¿Comemos algo? Estoy libre a la una 🌮</span>`
+        })
+        const fly = $('flyOut')
+        if (t >= 8.55) {
+          fly.style.color = 'white'
+          fly.style.padding = '0 16px'
+          fly.style.fontSize = '18px'
+        }
+        morphBubble(fly, S.msgOut, frontTo, (el, q) => {
+          el.style.background = 'var(--accent)'
+          el.style.justifyContent = 'center'
+          el.style.borderRadius = `${lerp(20, 1.545 * u, q)}px ${lerp(20, 1.545 * u, q)}px ${lerp(6, 1.545 * u, q)}px ${lerp(20, 1.545 * u, q)}px`
+          el.innerHTML = `<span style="opacity:${1 - clamp(q * 4)}">Me&nbsp;<b>muero de hambre</b>, ¿vamos a comer?</span>`
+        })
+        if (t < 8.55) $('flyOut').style.justifyContent = ''
+
+        // The real mark fades in where the shapes land, in its app body
+        const markIn = ease.out3(prog(t, 9.1, 0.3))
+        place($('mark'), { x: ICON.x, y: ICON.y, z: 0, o: markIn, s: lerp(0.96, 1, markIn) })
+        const body = ease.outBack(prog(t, 9.05, 0.5), 1.4)
+        place($('appBody'), { x: ICON.x, y: ICON.y, z: -40, s: lerp(0.4, 1, body), o: clamp(prog(t, 9.05, 0.2)) })
+
+        S.wordmark.forEach((c, i) => {
+          const q = ease.out5(prog(t, 9.1 + i * 0.022, 0.55))
+          c.style.opacity = clamp(q * 2)
+          c.style.transform = `translateY(${lerp(70, 0, q)}px) rotateX(${lerp(-90, 0, q)}deg)`
+          c.style.filter = q < 1 ? `blur(${(1 - q) * 8}px)` : 'none'
+        })
+        place($('wordmark'), { x: ICON.x, y: 40, o: t >= 9.05 ? 1 : 0 })
+
+        S.tagline.forEach((w, i) => {
+          const q = ease.out5(prog(t, 9.35 + i * 0.03, 0.5))
+          w.style.opacity = q
+          w.style.transform = `translateY(${lerp(24, 0, q)}px)`
+        })
+        place($('tagline'), { x: ICON.x, y: 132, o: t >= 9.3 ? 1 : 0 })
+
+        const cta = ease.out3(prog(t, 9.6, 0.35))
+        place($('cta'), { x: ICON.x, y: 205, o: cta, s: lerp(0.94, 1, cta) })
+      }
+
+      // Moments the soundtrack reacts to, in video seconds: video/audio.mjs turns each one into a sound
+      window.sceneCues = () =>
+        [
+          ['message', 0.3],
+          ...[0, 1, 2, 3, 6, 7].map((i) => ['word', INTRO_STARTS[i]]),
+          ['slam', INTRO_STARTS[4]],
+          ['wordsOut', 1.25],
+          ['rise', 1.4],
+          ['cmd', 1.9, { n: 1 }],
+          ['cmd', 2.12, { n: 2 }],
+          ['morph', 2.42],
+          ['pop', 2.85],
+          ...typeTimes.map((time, i) => ['type', time, { char: INPUT[i] }]),
+          ['note', typeTimes[15] + 0.05],
+          ['keyIn', 4.72],
+          ['enter', 5.0],
+          ['think', 5.02],
+          ...[0, 1, 2].map((n) => ['row', 5.6 + n * 0.11, { n }]),
+          ['listen', 6.45, { step: 0.16 * SLOWDOWN }],
+          ['keyIn', 7.1],
+          ['enter', 7.35],
+          ['copied', 7.4],
+          ['fly', 7.55, { dur: 0.65 * SLOWDOWN }],
+          ['sent', 8.2],
+          ['morphOut', 8.55, { until: 9.1 * SLOWDOWN }],
+          ['logo', 9.1],
+          ['letters', 9.1, { count: S.wordmark.length, step: 0.022 * SLOWDOWN }],
+        ].map(([name, time, extra]) => ({ name, time: time * SLOWDOWN, ...extra }))
+
+      document.fonts.ready.then(() => {
+        init()
+        const t = Number(new URLSearchParams(location.search).get('t') || 0)
+        renderFrame(t)
+      })
+    </script>
+  </body>
+</html>
