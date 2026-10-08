@@ -6,7 +6,7 @@
     <title>QuickTranslate: a Spotlight for learning languages</title>
     <meta
       name="description"
-      content="A Spotlight-like launcher for learning languages. Double-tap ⌘, type what you mean, get natural ways to say it, in either direction. Listen to it, send it to Anki, find it again in the history."
+      content="A Spotlight-like launcher for learning languages. Double-tap ⌘, type what you mean, get natural ways to say it, in either direction, or explore a word in example sentences. Listen to it, send it to Anki, find it again in the history."
     />
     <link rel="icon" href="icon.png" />
     <style>
@@ -380,7 +380,7 @@
         margin: 0 -6px 0 -3px;
       }
 
-      /* Mode name on the right of each direction, and the time of each history entry */
+      /* Mode name of each mode, and the time of each history entry */
       .launcher .tag {
         flex-shrink: 0;
         color: var(--muted);
@@ -389,21 +389,32 @@
         text-transform: uppercase;
       }
 
-      /* First screen: a row for each language, its two directions side by side */
+      /* First screen: a row for each language, its three modes side by side */
       .launcher .modes li {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         padding: 0;
         border-left: 0;
       }
 
       .launcher .modes .mode {
         display: flex;
-        align-items: center;
-        gap: 12px;
+        flex-direction: column;
+        gap: 2px;
         min-width: 0;
         padding: 7px 14px 7px 12px;
         border-left: 2px solid transparent;
+      }
+
+      .launcher .modes .mode .tag {
+        order: -1;
+        font-size: 10px;
+      }
+
+      .launcher .modes .mode .text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .launcher .modes .mode + .mode {
@@ -502,8 +513,11 @@
         color: var(--muted);
       }
 
+      /* Menu bar icon (src/main/assets/trayTemplate.png, drawn by build/make-icon.swift) */
       .menubar {
-        font: 600 13px var(--sans);
+        width: 16px;
+        height: 16px;
+        vertical-align: -3px;
         color: var(--fg);
       }
 
@@ -582,8 +596,7 @@
           border-bottom: 1px solid var(--line);
         }
 
-        .launcher .modes .mode .tag,
-        .launcher .modes .mode .item-note {
+        .launcher .modes .mode .tag {
           display: none;
         }
 
@@ -617,7 +630,7 @@
         <h1>Say it in another language without leaving what you're doing.</h1>
         <p class="lead">
           A Spotlight-like launcher for learning languages. Double-tap <kbd>⌘</kbd>, type what you mean, and
-          get natural ways to say it, in either direction.
+          get natural ways to say it, in either direction. Or explore a word in example sentences.
         </p>
         <div class="actions">
           <a class="button" href="https://github.com/raphaelkieling/quick-translate/releases/latest">
@@ -635,7 +648,7 @@
       </section>
 
       <section class="stage" aria-label="Preview of the launcher">
-        <div class="mono caption"><span class="num">01</span> · Double-tap ⌘: pick a language and a direction</div>
+        <div class="mono caption"><span class="num">01</span> · Double-tap ⌘: pick a language and a mode</div>
         <div class="launcher">
           <div class="bar">
             <span class="input placeholder"><span class="caret"></span>What do you want to say? Write in English…</span>
@@ -654,32 +667,40 @@
               <div class="mode selected">
                 <div class="body">
                   <div class="text">English → Spanish</div>
-                  <div class="item-note">Natural ways to say it in Spanish</div>
                 </div>
                 <span class="tag">Translate</span>
               </div>
               <div class="mode">
                 <div class="body">
                   <div class="text">Spanish → English</div>
-                  <div class="item-note">Natural ways to say it in English</div>
                 </div>
                 <span class="tag">Translate</span>
+              </div>
+              <div class="mode">
+                <div class="body">
+                  <div class="text">Spanish</div>
+                </div>
+                <span class="tag">Explore</span>
               </div>
             </li>
             <li>
               <div class="mode">
                 <div class="body">
                   <div class="text">English → French</div>
-                  <div class="item-note">Natural ways to say it in French</div>
                 </div>
                 <span class="tag">Translate</span>
               </div>
               <div class="mode">
                 <div class="body">
                   <div class="text">French → English</div>
-                  <div class="item-note">Natural ways to say it in English</div>
                 </div>
                 <span class="tag">Translate</span>
+              </div>
+              <div class="mode">
+                <div class="body">
+                  <div class="text">French</div>
+                </div>
+                <span class="tag">Explore</span>
               </div>
             </li>
           </ul>
@@ -763,23 +784,23 @@
           <div class="mono"><span class="num">01</span> · Translate</div>
           <h3>Sound like a native</h3>
           <p>
-            Write what you mean and get five natural ways to say it, from the most common to the least, each
-            with a note on tone. Paste something in the language you're learning to get it back in yours.
+            Write what you mean and get five natural ways to say it, each with a note on tone, or paste
+            something to get it back in yours. Wrap a word in <code>**double asterisks**</code> to see how it's said.
           </p>
         </div>
         <div class="cell">
-          <div class="mono"><span class="num">02</span> · Focus</div>
-          <h3>Mark what matters</h3>
+          <div class="mono"><span class="num">02</span> · Explore</div>
+          <h3>Go deeper on a word</h3>
           <p>
-            Wrap a word in <code>**double asterisks**</code> and every answer highlights how it's said. The bold
-            stays on your Anki cards too.
+            Type a word or an expression in the language you're learning and see it used in example sentences,
+            from its most common use to the least, each with a simple translation.
           </p>
         </div>
         <div class="cell">
           <div class="mono"><span class="num">03</span> · Listen</div>
           <h3>Hear it out loud</h3>
           <p>
-            Any answer can be read aloud by a macOS voice. Pick a voice for each language in Settings, then press
+            Answers in the language you're learning can be read aloud by a macOS voice. Pick a voice for each language in Settings, then press
             <kbd>⌘</kbd><kbd>↵</kbd>.
           </p>
         </div>
@@ -788,14 +809,14 @@
           <h3>Straight to Anki</h3>
           <p>
             Press <kbd>⇧</kbd><kbd>↵</kbd> to turn an answer into a flashcard through AnkiConnect, with a deck for
-            each language you're learning.
+            each language you're learning. The card plays the phrase aloud and keeps the bold words.
           </p>
         </div>
         <div class="cell">
           <div class="mono"><span class="num">05</span> · History</div>
           <h3>Nothing gets lost</h3>
           <p>
-            Your last answers wait under the directions, so closing the launcher by mistake costs nothing. Asking
+            Your last answers wait under the modes, so closing the launcher by mistake costs nothing. Asking
             the same thing again is instant, straight from the cache.
           </p>
         </div>
@@ -803,7 +824,7 @@
           <div class="mono"><span class="num">06</span> · Real Time</div>
           <h3>It knows which way</h3>
           <p>
-            Turn on Real Time Mode and it detects the language you type in, then picks the direction for you:
+            Turn on Real Time Mode and it detects the language you type in, then picks the translation for you:
             yours to the one you're learning, or back.
           </p>
         </div>
@@ -816,7 +837,7 @@
           <h4>Double-tap <kbd>⌘</kbd></h4>
           <p>
             The launcher opens on top of whatever you're doing, just like Spotlight, in the language and
-            direction you used last.
+            mode you used last.
           </p>
         </div>
         <div class="cell">
@@ -824,7 +845,7 @@
           <h4>Type and press <kbd>↵</kbd></h4>
           <p>
             <kbd>↑</kbd><kbd>↓</kbd> picks the language (add as many as you're learning), <kbd>←</kbd><kbd>→</kbd>
-            the direction. Or let Real Time Mode pick them.
+            the mode: translate either way, or explore a word. Or let Real Time Mode pick them.
           </p>
         </div>
         <div class="cell">
@@ -838,15 +859,31 @@
       <section>
         <dl class="keys">
           <div><dt><kbd>⌘</kbd> <kbd>⌘</kbd></dt><dd>Open or close the launcher</dd></div>
-          <div><dt><kbd>↵</kbd></dt><dd>Translate, or copy the selected answer</dd></div>
+          <div><dt><kbd>↵</kbd></dt><dd>Ask, or copy the selected answer</dd></div>
           <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Pick the language, an answer or a history entry</dd></div>
           <div><dt><kbd>⌘</kbd><kbd>↵</kbd></dt><dd>Listen to the selected answer</dd></div>
-          <div><dt><kbd>←</kbd><kbd>→</kbd> <kbd>⇥</kbd></dt><dd>Switch the direction</dd></div>
+          <div><dt><kbd>←</kbd><kbd>→</kbd> <kbd>⇥</kbd></dt><dd>Switch the mode: translate either way, or explore</dd></div>
           <div><dt><kbd>⇧</kbd><kbd>↵</kbd></dt><dd>Add the selected answer to Anki</dd></div>
-          <div><dt><kbd>⌫</kbd></dt><dd>Back to the directions</dd></div>
+          <div><dt><kbd>⌫</kbd></dt><dd>Back to the modes</dd></div>
           <div><dt><kbd>esc</kbd></dt><dd>Close</dd></div>
           <div><dt><kbd>⌘</kbd><kbd>,</kbd></dt><dd>Settings: languages, voices, AI, Anki, cache</dd></div>
-          <div><dt><span class="menubar">文A</span></dt><dd>In the menu bar: switch the language in use</dd></div>
+          <div>
+            <dt>
+              <svg class="menubar" viewBox="0 0 24 24" role="img" aria-label="QuickTranslate menu bar icon">
+                <mask id="menubar-gap">
+                  <rect width="24" height="24" fill="white" stroke="none" />
+                  <rect x="6.4" y="6.4" width="17.6" height="17.6" fill="black" stroke="none" />
+                </mask>
+                <mask id="menubar-a">
+                  <rect x="8" y="8" width="16" height="16" fill="white" stroke="none" />
+                  <text x="16" y="16.5" text-anchor="middle" dominant-baseline="central" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="12" font-weight="600" fill="black" stroke="none">A</text>
+                </mask>
+                <rect x="0.88" y="0.88" width="14.24" height="14.24" stroke-width="1.76" stroke-linejoin="miter" mask="url(#menubar-gap)" />
+                <rect x="8" y="8" width="16" height="16" fill="currentColor" stroke="none" mask="url(#menubar-a)" />
+              </svg>
+            </dt>
+            <dd>In the menu bar: switch the language in use</dd>
+          </div>
         </dl>
       </section>
 

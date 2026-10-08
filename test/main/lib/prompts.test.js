@@ -27,6 +27,15 @@ describe('translate and reverse', () => {
   });
 });
 
+describe('explore', () => {
+  it('uses a word of the second language in sentences, translated to the main language', () => {
+    const instructions = MODES.explore.instructions(settings);
+    assert.match(instructions, /writes a word or an expression in Japanese/);
+    assert.match(instructions, /example sentences in Japanese/);
+    assert.match(instructions, /translation of the sentence to Portuguese \(Brazil\)/);
+  });
+});
+
 describe('answerSchema', () => {
   it('accepts a summary with items', () => {
     const answer = { summary: '', items: [{ text: 'Hi', note: 'casual' }] };

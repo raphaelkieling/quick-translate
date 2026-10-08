@@ -6,7 +6,7 @@ export const DEFAULTS = {
   openaiApiKey: '',
   anthropicApiKey: '',
   googleApiKey: '',
-  lastMode: 'translate', // the launcher opens in the mode you used last: 'translate' (main → second) or 'reverse'
+  lastMode: 'translate', // the launcher opens in the mode you used last: 'translate' (main → second), 'reverse' or 'explore'
   realtimeMode: false, // pick the mode from the language you type in (see languageQuestion in src/main/lib/prompts.js)
   cacheEnabled: true, // answer the same request again from the cache (see src/main/lib/cache.js)
   theme: 'system', // 'system', 'light' or 'dark'

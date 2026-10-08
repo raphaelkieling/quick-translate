@@ -14,7 +14,7 @@ import { z } from 'zod';
  * in the answers: the launcher shows them in bold and Anki cards keep them bold.
  */
 
-// Both modes translate, one each way. The notes and the tip are always in your main language.
+// Two modes translate, one each way. The notes and the tip are always in your main language.
 const translation = (from, to) => ({
   instructions: (settings) => {
     const { mainLanguage, secondLanguage } = settings;
@@ -41,11 +41,32 @@ Only use **double asterisks** in the items when the user marked something.
   prompt: (text) => text,
 });
 
+// You type a word in the second language and see it used in sentences, each with a simple translation.
+const exploration = {
+  instructions: ({ mainLanguage, secondLanguage }) =>
+    `
+You help a native ${mainLanguage} speaker who is learning ${secondLanguage}.
+The user writes a word or an expression in ${secondLanguage} and wants to see how it is used.
+If they write it in ${mainLanguage}, explore the most natural way to say it in ${secondLanguage}.
+
+As items, give 6 example sentences in ${secondLanguage} that use it, from the most common use to the least common.
+- Show its different meanings and uses, the expressions it is part of, and the words it often goes with.
+- Short, natural sentences from real life, like a native speaker would say them.
+- In every item, wrap the word or expression (as it appears in the sentence) in **double asterisks**.
+- Each note is a simple, natural translation of the sentence to ${mainLanguage}, with the translation of the word wrapped in **double asterisks** too.
+
+In the summary, explain in ${mainLanguage}, in one or two short sentences, what it means and when it is used.
+`.trim(),
+  prompt: (text) => text,
+};
+
 export const MODES = {
   // You type what you want to say in your main language and get natural ways to say it in the second one.
   translate: translation('mainLanguage', 'secondLanguage'),
   // The other way: you type in the second language and get natural ways to say it in your main language.
   reverse: translation('secondLanguage', 'mainLanguage'),
+  // A word in the second language, used in example sentences.
+  explore: exploration,
 };
 
 /**

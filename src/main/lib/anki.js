@@ -26,7 +26,8 @@ async function invoke(action, params = {}) {
 export const getDecks = () => invoke('deckNames');
 
 // Adds a note with a normal (front -> back) and a reversed (back -> front) card.
-export async function addCard(deck, front, back) {
+// `audio` ({ filename, data } in base64, see src/main/lib/audio.js) is played with the back.
+export async function addCard(deck, front, back, audio) {
   const [frontField, backField] = await invoke('modelFieldNames', { modelName: NOTE_TYPE }).catch(() => {
     throw new Error(`Anki has no "${NOTE_TYPE}" note type.`);
   });
@@ -39,14 +40,15 @@ export async function addCard(deck, front, back) {
         [backField]: boldToHtml(back),
       },
       tags: ['quicktranslate'],
+      ...(audio && { audio: [{ ...audio, fields: [backField] }] }),
     },
   });
 }
 
 // Each second language has its own deck. Returns the deck the card went to.
-export async function addCardForLanguage({ ankiEnabled, ankiDecks, secondLanguage }, front, back) {
+export async function addCardForLanguage({ ankiEnabled, ankiDecks, secondLanguage }, front, back, audio) {
   const deck = ankiDecks[secondLanguage];
   if (!ankiEnabled || !deck) throw new Error(`Turn on Anki and pick a deck for ${secondLanguage} in Settings.`);
-  await addCard(deck, front, back);
+  await addCard(deck, front, back, audio);
   return deck;
 }

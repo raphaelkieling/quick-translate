@@ -161,7 +161,7 @@ body.launcher::after {
   background: var(--selected);
 }
 
-/* Modes: a row for each second language, its two modes side by side */
+/* Modes: a row for each second language, its three modes side by side */
 #modes {
   max-height: 380px;
   overflow-y: auto;
@@ -169,7 +169,7 @@ body.launcher::after {
 
 #modes li {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   padding: 0;
   border-left: 0;
@@ -177,11 +177,23 @@ body.launcher::after {
 
 #modes .cell {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
   padding: 7px 14px 7px 12px;
   border-left: 2px solid transparent;
+}
+
+/* Three modes side by side are narrow: the mode name goes on top */
+#modes .cell .tag {
+  order: -1;
+  font-size: 10px;
+}
+
+#modes .cell .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #modes .cell + .cell {

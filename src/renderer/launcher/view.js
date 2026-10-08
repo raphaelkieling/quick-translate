@@ -6,15 +6,20 @@ export const MODES = {
     label: 'Translate',
     from: (s) => s.mainLanguage,
     to: (s) => s.secondLanguage,
-    description: (s) => `Natural ways to say it in ${shortName(s.secondLanguage)}`,
     placeholder: (s) => `What do you want to say? Write in ${s.mainLanguage}…`,
   },
   reverse: {
     label: 'Translate',
     from: (s) => s.secondLanguage,
     to: (s) => s.mainLanguage,
-    description: (s) => `Natural ways to say it in ${shortName(s.mainLanguage)}`,
     placeholder: (s) => `Something in ${s.secondLanguage} to translate…`,
+  },
+  // The sentences are in the second language, their notes translate them.
+  explore: {
+    label: 'Explore',
+    from: (s) => s.secondLanguage,
+    to: (s) => s.secondLanguage,
+    placeholder: (s) => `A word or an expression in ${s.secondLanguage} to explore…`,
   },
 };
 export const MODE_IDS = Object.keys(MODES);
@@ -28,13 +33,27 @@ export const languages = ({ secondLanguage, secondLanguages = [] }) => [
 // The settings as if `language` were the second language in use, for the modes above.
 export const forLanguage = (settings, language) => ({ ...settings, secondLanguage: language });
 
-// "Portuguese → English"
-export const direction = (id, settings) => `${shortName(MODES[id].from(settings))} → ${shortName(MODES[id].to(settings))}`;
+// "Portuguese → English", or just "English" when the mode stays in one language.
+export function direction(id, settings) {
+  const [from, to] = [MODES[id].from(settings), MODES[id].to(settings)].map(shortName);
+  return from === to ? from : `${from} → ${to}`;
+}
+
+// The badge in front of the text: the direction, with the mode name when the mode stays in one language.
+export const badge = (id, settings) =>
+  MODES[id].from(settings) === MODES[id].to(settings) ? `${MODES[id].label} ${direction(id, settings)}` : direction(id, settings);
+
+// The answers are in the second language: they can be read aloud (there is no voice for the main language).
+export const answersInSecondLanguage = (id, settings) => MODES[id].to(settings) === settings.secondLanguage;
 
 // Both sides of the card, always main language -> second language (Anki also creates the reversed card).
 // Translate: what you typed -> the phrase. The other way: the phrase -> what you typed.
-export const ankiCard = (answerMode, question, item) =>
-  answerMode === 'translate' ? [question, item.text] : [item.text, question];
+// Explore: the translation -> the sentence.
+export function ankiCard(answerMode, question, item) {
+  if (answerMode === 'translate') return [question, item.text];
+  if (answerMode === 'explore') return [item.note, item.text];
+  return [item.text, question];
+}
 
 // Just enough Markdown for the summary: **bold**, *italic*, `code` and line breaks.
 export const markdown = (text) =>

@@ -1,6 +1,8 @@
 import { app, clipboard, ipcMain } from 'electron';
+import { stripBold } from '../shared/text.js';
 import { ask, decideMode, decisionKey, requestKey } from './lib/ai.js';
 import { addCardForLanguage, getDecks } from './lib/anki.js';
+import { recordSpeech } from './lib/audio.js';
 import { setSecondLanguage, updateTrayMenu } from './menu.js';
 import { cache, history, loadSettings, saveSettings } from './store.js';
 import { applyTheme, hideLauncher, openSettings, resizeLauncher } from './windows.js';
@@ -83,11 +85,14 @@ export function registerIpc() {
   ipcMain.handle('cache:clear', () => cache.clear());
 
   ipcMain.handle('anki:decks', orError(async () => ({ decks: await getDecks() })));
+  // The back is in the second language: the card plays it read by `voice`, the one the launcher uses.
+  // Without a voice, or when recording fails, the card is added without audio (`audio` tells the launcher).
   ipcMain.handle(
     'anki:add',
-    orError(async (_event, front, back, language) => ({
-      deck: await addCardForLanguage(settingsFor(language), front, back),
-    })),
+    orError(async (_event, front, back, language, voice) => {
+      const audio = voice ? await recordSpeech(stripBold(back), voice).catch(() => null) : null;
+      return { deck: await addCardForLanguage(settingsFor(language), front, back, audio), audio: Boolean(audio) };
+    }),
   );
 
   ipcMain.on('clipboard:write', (_event, text) => clipboard.writeText(text));

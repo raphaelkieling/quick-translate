@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import {
   MODE_IDS,
   ankiCard,
+  answersInSecondLanguage,
+  badge,
   direction,
   forLanguage,
   hint,
@@ -23,6 +25,18 @@ describe('launcher modes', () => {
   it('shows the direction with short language names', () => {
     assert.equal(direction('translate', settings), 'Portuguese → English');
     assert.equal(direction('reverse', settings), 'English → Portuguese');
+    assert.equal(direction('explore', settings), 'English');
+  });
+
+  it('names the mode in the badge when it stays in one language', () => {
+    assert.equal(badge('translate', settings), 'Portuguese → English');
+    assert.equal(badge('explore', settings), 'Explore English');
+  });
+
+  it('reads aloud only the answers in the second language', () => {
+    assert.equal(answersInSecondLanguage('translate', settings), true);
+    assert.equal(answersInSecondLanguage('reverse', settings), false);
+    assert.equal(answersInSecondLanguage('explore', settings), true);
   });
 });
 
@@ -56,6 +70,11 @@ describe('ankiCard', () => {
 
   it('the other way: the phrase -> what you typed', () => {
     assert.deepEqual(ankiCard('reverse', 'break a leg', { text: 'Boa sorte!', note: 'casual' }), ['Boa sorte!', 'break a leg']);
+  });
+
+  it('explore: the translation -> the sentence', () => {
+    const sentence = { text: 'I **ran into** him.', note: 'Eu **esbarrei** nele.' };
+    assert.deepEqual(ankiCard('explore', 'run into', sentence), ['Eu **esbarrei** nele.', 'I **ran into** him.']);
   });
 });
 

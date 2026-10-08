@@ -56,6 +56,20 @@ describe('anki', () => {
     assert.deepEqual(fields, { Front: 'Eu <b>esbarrei</b> nele', Back: 'I <b>ran into</b> him' });
   });
 
+  it('attaches the audio to the back', async () => {
+    const requests = fakeAnki(FIELDS);
+    await addCard('English', 'oi', 'hi', { filename: 'hi.m4a', data: 'AAAA' });
+
+    const { note } = requests.find((r) => r.action === 'addNote').params;
+    assert.deepEqual(note.audio, [{ filename: 'hi.m4a', data: 'AAAA', fields: ['Back'] }]);
+  });
+
+  it('adds no audio when there is none', async () => {
+    const requests = fakeAnki(FIELDS);
+    await addCard('English', 'oi', 'hi');
+    assert.equal('audio' in requests.find((r) => r.action === 'addNote').params.note, false);
+  });
+
   it('explains when the note type is missing', async () => {
     fakeAnki({ modelFieldNames: { result: null, error: 'model was not found' } });
     await assert.rejects(addCard('English', 'a', 'b'), /no "Basic \(and reversed card\)" note type/);

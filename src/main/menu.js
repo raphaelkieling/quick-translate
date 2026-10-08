@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { app, Menu, Tray, nativeImage } from 'electron';
 import { loadSettings, saveSettings } from './store.js';
 import { openSettings, sendToSettings, showLauncher } from './windows.js';
@@ -7,8 +8,8 @@ let tray;
 // --- Menu bar icon ---
 
 export function createTray() {
-  tray = new Tray(nativeImage.createEmpty());
-  tray.setTitle('文A');
+  // "Template" in the name makes macOS tint it for light/dark menu bars; drawn by build/make-icon.swift
+  tray = new Tray(nativeImage.createFromPath(path.join(import.meta.dirname, 'assets', 'trayTemplate.png')));
   tray.setToolTip('QuickTranslate');
   updateTrayMenu();
 }

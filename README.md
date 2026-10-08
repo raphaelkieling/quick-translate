@@ -10,13 +10,14 @@ A Spotlight-like launcher for learning a second language. Double-tap **⌘** to 
 
 - **Translate**: say it in your language, get natural ways to say it in the other.
 - **Translate back**: paste something in the other language, get natural ways to say it in yours.
-- **Listen**: hear any answer read aloud by a macOS voice (pick one for each language in Settings).
+- **Explore**: type a word in the other language, see it used in example sentences, each with a simple translation.
+- **Listen**: hear the answers in your second language read aloud by a macOS voice (pick one for each language in Settings).
 - The launcher opens in the mode and language you used last.
 - **History**: your last answers show under the modes while nothing is typed. Click one (or ↓ to it and ↵) to see it again.
 - **Cache**: asking the same thing again answers instantly, without calling the AI. Turn it off or clear it in Settings.
 - **Real Time Mode** (optional, in Settings): finds the language you type in. Your main language translates to the second one, a second language translates back to yours.
 
-Works with OpenAI, Claude or Gemini. Can send translations to Anki via [AnkiConnect](https://ankiweb.net/shared/info/2055492159).
+Works with OpenAI, Claude or Gemini. Can send translations to Anki via [AnkiConnect](https://ankiweb.net/shared/info/2055492159), with the phrase read aloud on the card.
 
 ## Run
 
@@ -46,4 +47,4 @@ After each build, macOS sees a new app: turn **Accessibility** off and on again 
 1. Allow **Accessibility** in System Settings → Privacy & Security (needed for the double ⌘).
 2. Fill in Settings: languages, API key, provider.
 
-Find it in the menu bar as **文A**. Click it to switch between your second languages.
+Find it in the menu bar: two overlapping squares, the front one with an **A**. Click it to switch between your second languages.

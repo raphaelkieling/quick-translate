@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   getCacheSize: () => ipcRenderer.invoke('cache:size'),
   clearCache: () => ipcRenderer.invoke('cache:clear'),
   getAnkiDecks: () => ipcRenderer.invoke('anki:decks'),
-  addToAnki: (front, back, language) => ipcRenderer.invoke('anki:add', front, back, language),
+  addToAnki: (front, back, language, voice) => ipcRenderer.invoke('anki:add', front, back, language, voice),
   copy: (text) => ipcRenderer.send('clipboard:write', text),
   hide: () => ipcRenderer.send('launcher:hide'),
   resize: (height) => ipcRenderer.send('launcher:resize', height),

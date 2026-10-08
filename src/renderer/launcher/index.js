@@ -4,6 +4,8 @@ import {
   MODES,
   MODE_IDS,
   ankiCard,
+  answersInSecondLanguage,
+  badge,
   direction,
   forLanguage,
   hint,
@@ -58,15 +60,18 @@ function el(tag, className, text) {
   return node;
 }
 
-// The text and the note can have **bold** words (see src/main/lib/prompts.js).
+// The text and the note can have **bold** words (see src/main/lib/prompts.js). Without a note, only the text.
 function listItem(text, note, className, onClick, aside, tag = 'li') {
   const li = el(tag, className);
   const body = el('div', 'body');
   const textNode = el('div', 'text');
-  const noteNode = el('div', 'note');
   textNode.innerHTML = boldToHtml(text);
-  noteNode.innerHTML = boldToHtml(note);
-  body.append(textNode, noteNode);
+  body.append(textNode);
+  if (note) {
+    const noteNode = el('div', 'note');
+    noteNode.innerHTML = boldToHtml(note);
+    body.append(noteNode);
+  }
   li.append(body, aside);
   li.onclick = onClick;
   return li;
@@ -74,11 +79,12 @@ function listItem(text, note, className, onClick, aside, tag = 'li') {
 
 const canAddToAnki = () => settings.ankiEnabled;
 
-// Read the answers with the voice of the language they are in (picked in Settings for the second languages).
-function voice() {
-  const to = MODES[answerMode || mode].to(forLanguage(settings, language));
-  return pickVoice(to, systemVoices, settings.voices?.[to]);
-}
+// The voice of the second language, picked in Settings. It also reads the phrases on the Anki cards.
+const secondLanguageVoice = () => pickVoice(language, systemVoices, settings.voices?.[language]);
+
+// Only the answers in the second language are read aloud: there is no voice to pick for the main language.
+const voice = () =>
+  answersInSecondLanguage(answerMode || mode, forLanguage(settings, language)) ? secondLanguageVoice() : undefined;
 
 function itemButton(className, html, title, onClick) {
   const button = el('span', `item-button ${className}`);
@@ -123,7 +129,7 @@ function languageRow(lang) {
     ...MODE_IDS.map((id) =>
       listItem(
         direction(id, languageSettings),
-        MODES[id].description(languageSettings),
+        '',
         lang === language && id === mode && historySelected < 0 ? `cell selected${autoPicked ? ' auto' : ''}` : 'cell',
         () => chooseMode(id, lang),
         el('span', 'tag', MODES[id].label),
@@ -149,7 +155,7 @@ function historyRow(entry, i) {
     () => openHistory(i),
     el('span', 'tag', timeAgo(entry.at)),
   );
-  li.title = direction(entry.mode, forLanguage(settings, entry.language));
+  li.title = badge(entry.mode, forLanguage(settings, entry.language));
   return li;
 }
 
@@ -158,7 +164,7 @@ function render() {
   const languageSettings = forLanguage(settings, language);
 
   $('badge').hidden = picking;
-  $('badge').textContent = direction(mode, languageSettings);
+  $('badge').textContent = badge(mode, languageSettings);
   $('badge').title = `${MODES[mode].label} (⌫ to change)`;
   input.placeholder = MODES[mode].placeholder(languageSettings);
 
@@ -363,13 +369,18 @@ async function addItemToAnki(i) {
   selected = i;
   render();
 
-  const result = await window.api.addToAnki(...ankiCard(answerMode, question, items[i]), language);
+  const v = secondLanguageVoice();
+  const result = await window.api.addToAnki(
+    ...ankiCard(answerMode, question, items[i]),
+    language,
+    v && { name: v.name, lang: v.lang },
+  );
   if (id !== requestId) return;
   if (result.error) {
     anki = { text: `Anki: ${result.error}`, error: true };
   } else {
     added.add(i);
-    anki = { text: `Added to Anki (${result.deck})` };
+    anki = { text: `Added to Anki (${result.deck})${result.audio ? '' : ', without audio'}` };
   }
   render();
 }
