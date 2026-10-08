@@ -393,6 +393,7 @@
       .launcher .modes li {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
+        gap: 0;
         padding: 0;
         border-left: 0;
       }
@@ -402,8 +403,7 @@
         flex-direction: column;
         gap: 2px;
         min-width: 0;
-        padding: 7px 14px 7px 12px;
-        border-left: 2px solid transparent;
+        padding: 7px 14px;
       }
 
       .launcher .modes .mode .tag {
@@ -421,10 +421,16 @@
         box-shadow: inset 1px 0 var(--line);
       }
 
+      /* The blue bar is drawn inside the cell, after the line between the modes */
       .launcher .modes .mode.selected {
-        border-left-color: var(--accent);
         background: var(--selected);
-        box-shadow: none;
+        box-shadow: inset 2px 0 var(--accent);
+      }
+
+      .launcher .modes .mode + .mode.selected {
+        box-shadow:
+          inset 1px 0 var(--line),
+          inset 3px 0 var(--accent);
       }
 
       .launcher .history-title {
