@@ -53,6 +53,7 @@ let pickedByHand = false; // choosing a mode yourself turns Real Time Mode off u
 let autoPicked = false; // the highlighted mode was picked by Real Time Mode
 let history = []; // the last answers, newest first (see src/main/lib/history.js)
 let historySelected = -1; // highlighted history entry while picking, -1 when it's a mode
+let historyHovered = false; // the mouse is over the history (it opens when collapsed in Settings)
 
 // --- Rendering ---
 
@@ -157,6 +158,10 @@ const knownModes = (list) => list.filter((entry) => MODES[entry.mode]);
 // Shown under the modes until you type something.
 const showsHistory = () => step === 'pick' && !input.value.trim() && history.length > 0;
 
+// Collapsed in Settings: only the title shows, until you hover it or go down into it.
+const historyCollapsible = () => settings.historyView === 'collapsed';
+const historyOpen = () => !historyCollapsible() || historyHovered || historySelected >= 0;
+
 function historyRow(entry, i) {
   const li = listItem(
     entry.text,
@@ -183,7 +188,9 @@ function render() {
   $('modes').querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
 
   $('history').hidden = !showsHistory();
-  $('history-list').replaceChildren(...(showsHistory() ? history.map(historyRow) : []));
+  $('history').classList.toggle('collapsible', historyCollapsible());
+  $('history').classList.toggle('collapsed', !historyOpen());
+  $('history-list').replaceChildren(...(showsHistory() && historyOpen() ? history.map(historyRow) : []));
   $('history-list').children[historySelected]?.scrollIntoView({ block: 'nearest' });
 
   $('status').hidden = picking || !status;
@@ -224,6 +231,7 @@ function reset(newSettings, newHistory) {
   settings = newSettings;
   history = knownModes(newHistory);
   historySelected = -1;
+  historyHovered = false;
   step = 'pick';
   mode = MODES[settings.lastMode] ? settings.lastMode : 'translate';
   language = settings.secondLanguage;
@@ -547,6 +555,17 @@ $('badge').onclick = () => {
 };
 $('settings').onclick = () => window.api.openSettings();
 
+// A collapsed history opens while the mouse is over it.
+for (const [event, hovered] of [
+  ['mouseenter', true],
+  ['mouseleave', false],
+]) {
+  $('history').addEventListener(event, () => {
+    historyHovered = hovered;
+    if (historyCollapsible()) render();
+  });
+}
+
 // Keep the focus in the input when clicking around.
 for (const id of ['badge', 'settings', 'modes', 'history', 'items']) {
   $(id).addEventListener('mousedown', (e) => e.preventDefault());
@@ -554,7 +573,14 @@ for (const id of ['badge', 'settings', 'modes', 'history', 'items']) {
 window.addEventListener('focus', () => input.focus());
 
 // The window grows and shrinks with its content.
-new ResizeObserver(() => window.api.resize($('app').getBoundingClientRect().height)).observe($('app'));
+// Only resize when the height really changes: resizing a native window is expensive.
+let lastHeight = 0;
+new ResizeObserver(() => {
+  const height = Math.ceil($('app').getBoundingClientRect().height);
+  if (height === lastHeight) return;
+  lastHeight = height;
+  window.api.resize(height);
+}).observe($('app'));
 
 window.api.onShow(reset);
 loadVoices().then((voices) => {

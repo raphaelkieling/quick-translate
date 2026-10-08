@@ -9,6 +9,9 @@ const page = (name) => path.join(import.meta.dirname, '..', 'renderer', name, 'i
 let launcher;
 let settingsWindow;
 
+// Same as --bg in style.css. Painted before the page, so there is no flash when a window opens.
+const backgroundColor = () => (nativeTheme.shouldUseDarkColors ? '#0f0f11' : '#f7f6f1');
+
 // --- Launcher (the Spotlight-like window) ---
 
 export function createLauncher() {
@@ -24,8 +27,11 @@ export function createLauncher() {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
-    webPreferences: { preload },
+    backgroundColor: backgroundColor(),
+    // Keep rendering while hidden, so the launcher shows up instantly.
+    webPreferences: { preload, backgroundThrottling: false },
   });
+  nativeTheme.on('updated', () => launcher.setBackgroundColor(backgroundColor()));
   launcher.setAlwaysOnTop(true, 'floating');
   launcher.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   launcher.on('blur', hideLauncher);
@@ -59,7 +65,9 @@ export function toggleLauncher() {
 
 // The launcher grows and shrinks with its content.
 export function resizeLauncher(height) {
-  launcher.setSize(LAUNCHER_WIDTH, Math.ceil(height));
+  height = Math.ceil(height);
+  if (launcher.getSize()[1] === height) return;
+  launcher.setSize(LAUNCHER_WIDTH, height);
 }
 
 // --- Settings window ---
@@ -83,7 +91,7 @@ export function openSettings() {
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f0f11' : '#f7f6f1',
+    backgroundColor: backgroundColor(),
     webPreferences: { preload },
   });
   settingsWindow.on('closed', () => {

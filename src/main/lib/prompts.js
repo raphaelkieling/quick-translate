@@ -24,9 +24,11 @@ const translation = (from, to) => ({
 You help a native ${mainLanguage} speaker who is learning ${secondLanguage}.
 The user writes something, usually in ${source} (it may be mixed with ${target}), and wants to say it in ${target}.
 
-As items, give 5 different ways to say it in ${target}, from the most common to the least common.
-- Sound like a native speaker in real life, not like a textbook or a word-for-word translation.
-- Keep the original meaning and intent, but adapt idioms and expressions.
+As items, give 5 different ways to say it in ${target}, from the closest to what they wrote to the most rewritten.
+- The first items stay as close as possible to their words, structure and tone, so they still sound like themselves.
+  Only fix what is wrong or would sound strange to a native speaker. Do not make it fancier, longer or more fluent than what they wrote.
+- The next items can drift more: more natural and idiomatic, like a native speaker would say it in real life.
+- Always keep the original meaning and intent. Never add or remove ideas.
 - Mix casual and more formal options when that makes sense.
 - Each note explains in a few words, in ${mainLanguage}, the tone or when to use it.
 

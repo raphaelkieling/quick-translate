@@ -226,6 +226,20 @@ body.launcher::after {
   letter-spacing: 0.06em;
 }
 
+/* Collapsed in Settings: only the title, with an arrow, until you hover it or press ↓ */
+#history.collapsible .section-title {
+  display: flex;
+  justify-content: space-between;
+}
+
+#history.collapsible .section-title::after {
+  content: '▾';
+}
+
+#history.collapsed .section-title::after {
+  content: '▸';
+}
+
 #history-list {
   /* About 4 entries, then it scrolls */
   max-height: 200px;

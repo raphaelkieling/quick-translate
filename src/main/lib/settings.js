@@ -10,6 +10,7 @@ export const DEFAULTS = {
   realtimeMode: false, // pick the mode from the language you type in (see languageQuestion in src/main/lib/prompts.js)
   cacheEnabled: true, // answer the same request again from the cache (see src/main/lib/cache.js)
   theme: 'system', // 'system', 'light' or 'dark'
+  historyView: 'open', // 'open', or 'collapsed' until you hover it or go down into it with ↓
   mainLanguage: 'Portuguese (Brazil)',
   secondLanguages: ['English'], // the languages you are learning (pick them in Settings)
   secondLanguage: 'English', // the one in use (switch it from the menu bar icon)
