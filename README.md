@@ -47,4 +47,4 @@ After each build, macOS sees a new app: turn **Accessibility** off and on again 
 1. Allow **Accessibility** in System Settings → Privacy & Security (needed for the double ⌘).
 2. Fill in Settings: languages, API key, provider.
 
-Find it in the menu bar: two overlapping squares, the front one with an **A**. Click it to switch between your second languages.
+Find it in the menu bar: a square with **文** behind a square with **A**. Click it to switch between your second languages.
