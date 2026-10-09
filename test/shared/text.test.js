@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { boldToHtml, escapeHtml, shortName, stripBold } from '../../src/shared/text.js';
+import { boldToHtml, boldWords, escapeHtml, hideBold, shortName, stripBold } from '../../src/shared/text.js';
 
 describe('escapeHtml', () => {
   it('escapes &, < and >', () => {
@@ -43,5 +43,13 @@ describe('boldToHtml', () => {
 describe('stripBold', () => {
   it('removes the marks and keeps the words', () => {
     assert.equal(stripBold('I **ran into** him **yesterday**'), 'I ran into him yesterday');
+  });
+});
+
+describe('boldWords and hideBold', () => {
+  it('finds and hides the **marked** words', () => {
+    assert.deepEqual(boldWords('a **word** and **more**'), ['word', 'more']);
+    assert.deepEqual(boldWords('nothing'), []);
+    assert.equal(hideBold('a **word** and **more**'), 'a ____ and ____');
   });
 });

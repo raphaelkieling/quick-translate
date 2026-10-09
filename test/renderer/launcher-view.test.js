@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import {
   MODE_IDS,
   ankiCard,
+  ankiCardTypes,
+  typeInCard,
   answersInSecondLanguage,
   asksInSecondLanguage,
   badge,
@@ -68,6 +70,36 @@ describe('forLanguage', () => {
   });
 });
 
+describe('ankiCardTypes', () => {
+  it('shows the direction of each card with short language names', () => {
+    assert.deepEqual(
+      ankiCardTypes(settings).map(({ id, direction }) => [id, direction]),
+      [
+        ['basic', 'Portuguese → English'],
+        ['reversed', 'English → Portuguese'],
+        ['typeIn', 'Portuguese → English'],
+      ],
+    );
+  });
+});
+
+describe('typeInCard', () => {
+  it('hides the marked words: you type only them, with the other side as a hint', () => {
+    assert.deepEqual(typeInCard('Eu **esbarrei** nele.', 'I **ran into** him.'), [
+      'I ____ him. (Eu **esbarrei** nele.)',
+      'ran into',
+    ]);
+  });
+
+  it('joins several marked words', () => {
+    assert.deepEqual(typeInCard('a', '**Get** it **over** with'), ['____ it ____ with (a)', 'Get ... over']);
+  });
+
+  it('asks for the whole phrase when nothing is marked', () => {
+    assert.deepEqual(typeInCard('Boa sorte', 'Break a leg!'), ['Boa sorte', 'Break a leg!']);
+  });
+});
+
 describe('ankiCard', () => {
   const item = { text: 'Break a leg!', note: 'Boa sorte!' };
 
@@ -113,6 +145,7 @@ describe('hint', () => {
     assert.match(hint({ step: 'pick', selected: -1, inHistory: true }), /↵ open/);
     assert.match(hint({ step: 'pick', selected: -1, atTop: true }), /↑ edit text +↓ language +←→ ⇥ mode/);
     assert.match(hint({ step: 'pick', selected: -1, editing: true, atTop: true }), /←→ move +↓ modes +⇥ mode/);
+    assert.match(hint({ step: 'ask', selected: 0, addingToAnki: true, canAddToAnki: true }), /↵ add +.*esc cancel/);
   });
 });
 

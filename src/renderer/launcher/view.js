@@ -1,4 +1,4 @@
-import { boldToHtml, shortName } from '../../shared/text.js';
+import { boldToHtml, boldWords, hideBold, shortName } from '../../shared/text.js';
 
 // What each mode looks like in the launcher. The prompts are in src/main/lib/prompts.js.
 export const MODES = {
@@ -58,6 +58,24 @@ export function ankiCard(answerMode, question, item) {
   return [item.text, question];
 }
 
+// The cards "Add to Anki" can create, all picked by default. How they become notes: src/main/lib/anki.js.
+export function ankiCardTypes(settings) {
+  const [main, second] = [settings.mainLanguage, settings.secondLanguage].map(shortName);
+  return [
+    { id: 'basic', label: 'Basic', direction: `${main} → ${second}` },
+    { id: 'reversed', label: 'Reverse', direction: `${second} → ${main}` },
+    { id: 'typeIn', label: 'Type in', direction: `${main} → ${second}` },
+  ];
+}
+
+// The sides of the Type in card: the phrase with its **marked** words hidden (and the other side as a hint),
+// and those words, the only thing to type. Without marked words, the whole phrase.
+export function typeInCard(front, back) {
+  const words = boldWords(back);
+  if (words.length === 0) return [front, back];
+  return [`${hideBold(back)} (${front})`, words.join(' ... ')];
+}
+
 // Just enough Markdown for the summary: **bold**, *italic*, `code` and line breaks.
 export const markdown = (text) =>
   boldToHtml(text)
@@ -81,7 +99,9 @@ export function timeAgo(at, now = Date.now()) {
 // The keyboard shortcuts shown at the bottom.
 // `canSpeakText`: ⌘↵ reads the text you typed (when the answers can't be read aloud).
 // `editing`: the arrows move the cursor in the text. `atTop`: on the first language, ↑ goes up to the text.
-export function hint({ step, selected, inHistory, editing, atTop, canAddToAnki, canSpeak, canSpeakText }) {
+// `addingToAnki`: the "Add to Anki" form is open.
+export function hint({ step, selected, inHistory, editing, atTop, addingToAnki, canAddToAnki, canSpeak, canSpeakText }) {
+  if (addingToAnki) return '↵ add   ⇥ next   space toggle   esc cancel';
   if (step === 'pick' && inHistory) return '↑↓ select   ↵ open   esc close';
   if (step === 'pick' && editing) return '←→ move   ↓ modes   ⇥ mode   ↵ ask   esc close';
   if (step === 'pick' && atTop) return '↑ edit text   ↓ language   ←→ ⇥ mode   ↵ ask   esc close';

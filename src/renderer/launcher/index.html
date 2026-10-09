@@ -28,6 +28,42 @@
       <div id="status" hidden></div>
       <div id="summary" hidden></div>
       <ul id="items" class="list" hidden></ul>
+      <!-- Add to Anki: opens in place of the answers with ⇧↵ or the Anki button of an answer -->
+      <form id="anki-form" hidden>
+        <div class="section-title">
+          <span>Add to Anki</span>
+          <span id="anki-deck"></span>
+        </div>
+        <label class="form-row">
+          <span class="tag">Front</span>
+          <textarea name="front" rows="1" spellcheck="false"></textarea>
+        </label>
+        <label class="form-row">
+          <span class="tag">Back</span>
+          <textarea name="back" rows="1" spellcheck="false"></textarea>
+        </label>
+        <div class="form-row">
+          <span class="tag">Cards</span>
+          <div id="anki-cards"></div>
+        </div>
+        <!-- Only for the Type in card: hide the words to type with ____ -->
+        <label class="form-row type-in">
+          <span class="tag">Type front</span>
+          <textarea name="typeFront" rows="1" spellcheck="false"></textarea>
+        </label>
+        <label class="form-row type-in">
+          <span class="tag">Type back</span>
+          <textarea name="typeBack" rows="1" spellcheck="false"></textarea>
+        </label>
+        <label class="form-row">
+          <span class="tag">Audio</span>
+          <span class="checkbox"><input name="audio" type="checkbox" /><span id="anki-voice"></span></span>
+        </label>
+        <div class="form-actions">
+          <button id="anki-cancel" class="button" type="button">Cancel</button>
+          <button id="anki-submit" class="button primary" type="submit"></button>
+        </div>
+      </form>
       <div class="footer">
         <span id="hint"></span>
         <span id="anki"></span>

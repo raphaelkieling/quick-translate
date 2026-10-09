@@ -313,8 +313,7 @@ body.launcher::after {
 
 .list li:hover .item-actions,
 .list li.selected .item-actions,
-.item-actions:has(.done),
-.item-actions:has(.busy) {
+.item-actions:has(.done) {
   opacity: 1;
 }
 
@@ -346,9 +345,180 @@ body.launcher::after {
   color: var(--success);
 }
 
-.item-button.busy {
+/* Add to Anki: a form in place of the answers, with what it adds already picked */
+#anki-form .section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#anki-deck {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--line);
+}
+
+#anki-form textarea {
+  field-sizing: content;
+  min-height: 28px;
+  max-height: 96px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  resize: none;
+}
+
+#anki-form textarea:hover {
+  border-color: var(--strong-line);
+}
+
+#anki-form textarea:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* The three cards side by side, like the modes */
+#anki-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+}
+
+.card-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.card-option + .card-option {
+  box-shadow: inset 1px 0 var(--line);
+}
+
+.card-option:has(:checked) {
+  background: var(--selected);
+}
+
+#anki-form .card-option input[type='checkbox'] {
+  margin-top: 2px;
+}
+
+#anki-form input[type='checkbox']:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card-option .body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.card-option .tag {
+  font-size: 10px;
+}
+
+.card-option:has(:checked) .tag {
   color: var(--accent);
+}
+
+.card-option .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+#anki-form .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#anki-form .checkbox:has(:disabled) {
+  opacity: 0.5;
   cursor: default;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--header);
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--field);
+  color: var(--fg);
+  font: 11px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--strong-line);
+}
+
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.button.primary:hover:not(:disabled) {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Adding: still looks like the button, it's only working */
+.button.busy:disabled {
+  opacity: 1;
+}
+
+.button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button svg {
+  width: 13px;
+  height: 13px;
 }
 
 .spinner {
@@ -532,7 +702,8 @@ body.launcher::after {
 
 /* Square checkboxes and radios */
 .settings input[type='checkbox'],
-.settings input[type='radio'] {
+.settings input[type='radio'],
+#anki-form input[type='checkbox'] {
   appearance: none;
   flex-shrink: 0;
   display: grid;
@@ -547,12 +718,14 @@ body.launcher::after {
 }
 
 .settings input[type='checkbox']:checked,
-.settings input[type='radio']:checked {
+.settings input[type='radio']:checked,
+#anki-form input[type='checkbox']:checked {
   border-color: var(--accent);
   background: var(--accent);
 }
 
-.settings input[type='checkbox']:checked::after {
+.settings input[type='checkbox']:checked::after,
+#anki-form input[type='checkbox']:checked::after {
   content: '';
   width: 7px;
   height: 3px;

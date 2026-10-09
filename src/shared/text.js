@@ -11,5 +11,11 @@ const BOLD = /\*\*(.+?)\*\*/g;
 // "a **word** & more" -> "a <b>word</b> &amp; more", for the launcher and Anki.
 export const boldToHtml = (text) => escapeHtml(text).replace(BOLD, '<b>$1</b>');
 
+// "a **word** and **more**" -> ["word", "more"]
+export const boldWords = (text) => [...text.matchAll(BOLD)].map(([, word]) => word);
+
+// "a **word**" -> "a ____", to hide the words to type on Anki.
+export const hideBold = (text) => text.replace(BOLD, '____');
+
 // "a **word**" -> "a word", for copying.
 export const stripBold = (text) => text.replace(BOLD, '$1');

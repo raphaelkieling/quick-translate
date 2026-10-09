@@ -4,6 +4,8 @@ import {
   MODES,
   MODE_IDS,
   ankiCard,
+  ankiCardTypes,
+  typeInCard,
   answersInSecondLanguage,
   asksInSecondLanguage,
   badge,
@@ -31,6 +33,7 @@ const TEXT = 'text';
 
 const $ = (id) => document.getElementById(id);
 const input = $('input');
+const ankiForm = $('anki-form');
 
 let settings = {};
 let step = 'pick'; // 'pick' a mode while typing, then 'ask' shows the answer
@@ -44,7 +47,7 @@ let summary = '';
 let items = [];
 let cached = false; // the answer on screen came from the cache
 let added = new Set(); // items already added to Anki
-let adding = new Set(); // items being added to Anki (making the audio takes a few seconds)
+let ankiDraft = null; // the "Add to Anki" form, while it's open: { item, adding }
 let selected = -1; // highlighted item, -1 for none
 let copied = -1; // item that was just copied
 let speaking = -1; // item being read aloud, or TEXT for the text you typed
@@ -123,14 +126,9 @@ function itemActions(i) {
   const actions = el('div', 'item-actions');
   if (canAddToAnki()) {
     const isAdded = added.has(i);
-    const isAdding = adding.has(i);
-    const icon = isAdded ? ICONS.check : isAdding ? ICONS.loader : ICONS.plus;
     actions.append(
-      itemButton(
-        isAdded ? 'done' : isAdding ? 'busy' : '',
-        `${icon}Anki`,
-        isAdding ? 'Adding to Anki…' : 'Add to Anki (⇧↵)',
-        () => addItemToAnki(i),
+      itemButton(isAdded ? 'done' : '', isAdded ? `${ICONS.check}Anki` : `${ICONS.plus}Anki`, 'Add to Anki (⇧↵)', () =>
+        openAnkiForm(i),
       ),
     );
   }
@@ -183,6 +181,26 @@ function historyRow(entry, i) {
   return li;
 }
 
+// The cards picked in the form: { basic, reversed, typeIn }.
+const pickedCards = () =>
+  Object.fromEntries([...$('anki-cards').querySelectorAll('input')].map((box) => [box.name, box.checked]));
+const cardCount = () => Object.values(pickedCards()).filter(Boolean).length;
+
+// Only what changes while the form is open: its fields keep what you type.
+function renderAnkiForm() {
+  ankiForm.hidden = !ankiDraft;
+  if (!ankiDraft) return;
+  const { front, back, typeFront, typeBack } = ankiForm.elements;
+  const { typeIn } = pickedCards();
+  for (const row of ankiForm.querySelectorAll('.type-in')) row.hidden = !typeIn;
+  const count = cardCount();
+  const sides = typeIn ? [front, back, typeFront, typeBack] : [front, back];
+  const submit = $('anki-submit');
+  submit.disabled = ankiDraft.adding || count === 0 || sides.some((side) => !side.value.trim());
+  submit.classList.toggle('busy', ankiDraft.adding);
+  submit.innerHTML = ankiDraft.adding ? `${ICONS.loader}Adding…` : `Add ${count} card${count === 1 ? '' : 's'}`;
+}
+
 function render() {
   const picking = step === 'pick';
   const languageSettings = forLanguage(settings, language);
@@ -208,10 +226,10 @@ function render() {
   $('status').textContent = status?.text ?? '';
   $('status').className = status?.error ? 'error' : '';
 
-  $('summary').hidden = picking || !summary;
+  $('summary').hidden = picking || !summary || Boolean(ankiDraft);
   $('summary').innerHTML = markdown(summary);
 
-  $('items').hidden = picking || items.length === 0;
+  $('items').hidden = picking || items.length === 0 || Boolean(ankiDraft);
   $('items').replaceChildren(
     ...items.map((item, i) => {
       const li = listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
@@ -228,6 +246,7 @@ function render() {
     inHistory: historySelected >= 0,
     editing,
     atTop: language === languages(settings)[0],
+    addingToAnki: Boolean(ankiDraft),
     canAddToAnki: canAddToAnki(),
     canSpeak: Boolean(voice()),
     canSpeakText: Boolean(textVoice()),
@@ -235,7 +254,8 @@ function render() {
   $('anki').hidden = picking || !anki;
   $('anki').textContent = anki?.text ?? '';
   $('anki').className = anki?.error ? 'error' : '';
-  $('cached').hidden = picking || !cached || Boolean(anki);
+  $('cached').hidden = picking || !cached || Boolean(anki) || Boolean(ankiDraft);
+  renderAnkiForm();
 }
 
 // --- Actions ---
@@ -251,6 +271,7 @@ function reset(newSettings, newHistory) {
   language = settings.secondLanguage;
   status = null;
   anki = null;
+  ankiDraft = null;
   summary = '';
   items = [];
   cached = false;
@@ -283,6 +304,7 @@ function backToModes() {
   stopItem();
   status = null;
   anki = null;
+  ankiDraft = null;
   summary = '';
   items = [];
   selected = -1;
@@ -352,6 +374,7 @@ async function submit() {
   stopItem();
   status = { text: 'Thinking…' };
   anki = null;
+  ankiDraft = null;
   summary = '';
   items = [];
   cached = false;
@@ -389,7 +412,7 @@ function showAnswer(text, output, fromCache) {
   items = output.items;
   cached = fromCache;
   added = new Set();
-  adding = new Set();
+  ankiDraft = null;
   selected = items.length ? 0 : -1;
 }
 
@@ -411,26 +434,72 @@ function openHistory(i) {
   input.focus();
 }
 
-async function addItemToAnki(i) {
-  if (!canAddToAnki() || added.has(i) || adding.has(i)) return;
-  const id = requestId;
-  selected = i;
-  adding.add(i);
-  render();
+// One of three cards side by side, picked by default.
+function cardOption({ id, label, direction }) {
+  const option = el('label', 'card-option');
+  const box = el('input');
+  box.type = 'checkbox';
+  box.name = id;
+  box.checked = true;
+  const body = el('span', 'body');
+  body.append(el('span', 'tag', label), el('span', 'text', direction));
+  option.append(box, body);
+  return option;
+}
 
+// The form starts with both sides of the card, every card and the audio: ↵ adds them as they are.
+function openAnkiForm(i) {
+  if (!canAddToAnki() || added.has(i)) return;
+  stopItem();
+  selected = i;
+  const [front, back] = ankiCard(answerMode, question, items[i]);
+  const [typeFront, typeBack] = typeInCard(front, back);
+  ankiForm.elements.front.value = front;
+  ankiForm.elements.back.value = back;
+  ankiForm.elements.typeFront.value = typeFront;
+  ankiForm.elements.typeBack.value = typeBack;
+  $('anki-cards').replaceChildren(...ankiCardTypes(forLanguage(settings, language)).map(cardOption));
   const v = secondLanguageVoice();
-  const result = await window.api.addToAnki(
-    ...ankiCard(answerMode, question, items[i]),
-    language,
-    v && { name: v.name, lang: v.lang },
-  );
+  ankiForm.elements.audio.checked = Boolean(v);
+  ankiForm.elements.audio.disabled = !v;
+  $('anki-voice').textContent = v ? `Read the back with ${v.name}` : `No voice for ${language}`;
+  $('anki-deck').textContent = settings.ankiDecks?.[language] ?? '';
+  ankiDraft = { item: i, adding: false };
+  anki = null;
+  render();
+  $('anki-submit').focus();
+}
+
+function closeAnkiForm() {
+  ankiDraft = null;
+  render();
+  input.focus();
+}
+
+// Recording the audio takes a few seconds: the button shows it's working.
+async function addToAnki() {
+  const draft = ankiDraft;
+  renderAnkiForm();
+  if (!draft || $('anki-submit').disabled) return;
+  const id = requestId;
+  const { front, back, typeFront, typeBack, audio } = ankiForm.elements;
+  const card = { front: front.value.trim(), back: back.value.trim(), cards: pickedCards() };
+  if (card.cards.typeIn) Object.assign(card, { typeFront: typeFront.value.trim(), typeBack: typeBack.value.trim() });
+  const count = cardCount();
+  const v = audio.checked && secondLanguageVoice();
+  draft.adding = true;
+  renderAnkiForm();
+
+  const result = await window.api.addToAnki(card, language, v && { name: v.name, lang: v.lang });
   if (id !== requestId) return;
-  adding.delete(i);
+  draft.adding = false;
   if (result.error) {
     anki = { text: `Anki: ${result.error}`, error: true };
   } else {
-    added.add(i);
-    anki = { text: `Added to Anki (${result.deck})${result.audio ? '' : ', without audio'}` };
+    added.add(draft.item);
+    const cards = `${count} card${count === 1 ? '' : 's'}`;
+    anki = { text: `Added ${cards} to Anki (${result.deck})${v && !result.audio ? ', without audio' : ''}` };
+    if (ankiDraft === draft) return closeAnkiForm();
   }
   render();
 }
@@ -554,11 +623,20 @@ function onPickKey(key, withModifier, shiftKey) {
   return true;
 }
 
+// In the "Add to Anki" form, ⇥ and space work as usual. ↵ adds the cards, even from a text field.
+function onAnkiKey(key, target) {
+  if (key === 'Escape') closeAnkiForm();
+  else if (key === 'Enter' && target === $('anki-cancel')) closeAnkiForm();
+  else if (key === 'Enter') addToAnki();
+  else return false;
+  return true;
+}
+
 function onAskKey(key, shiftKey, metaKey) {
   if (key === 'Tab') nextMode(shiftKey ? -1 : 1, true);
   else if (key === 'ArrowDown' && items.length) selectItem(selected + 1);
   else if (key === 'ArrowUp' && items.length) selectItem(selected - 1);
-  else if (key === 'Enter' && shiftKey && selected >= 0) addItemToAnki(selected);
+  else if (key === 'Enter' && shiftKey && selected >= 0) openAnkiForm(selected);
   else if (key === 'Enter' && metaKey && textVoice()) speakText();
   else if (key === 'Enter' && metaKey && selected >= 0) speakItem(selected);
   else if (key === 'Enter' && selected >= 0) copyItem(selected);
@@ -570,6 +648,10 @@ function onAskKey(key, shiftKey, metaKey) {
 
 document.addEventListener('keydown', (e) => {
   if (e.isComposing) return;
+  if (ankiDraft) {
+    if (onAnkiKey(e.key, e.target)) e.preventDefault();
+    return;
+  }
   if (e.key === 'Escape') return window.api.hide();
   const withModifier = e.altKey || e.metaKey || e.ctrlKey || e.shiftKey;
   const handled = step === 'pick' ? onPickKey(e.key, withModifier, e.shiftKey) : onAskKey(e.key, e.shiftKey, e.metaKey);
@@ -609,7 +691,14 @@ for (const [event, hovered] of [
 for (const id of ['badge', 'settings', 'modes', 'history', 'items']) {
   $(id).addEventListener('mousedown', (e) => e.preventDefault());
 }
-window.addEventListener('focus', () => input.focus());
+window.addEventListener('focus', () => (ankiDraft ? $('anki-submit') : input).focus());
+
+ankiForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  addToAnki();
+});
+ankiForm.addEventListener('input', renderAnkiForm);
+$('anki-cancel').onclick = closeAnkiForm;
 
 // The window grows and shrinks with its content.
 // Only resize when the height really changes: resizing a native window is expensive.
