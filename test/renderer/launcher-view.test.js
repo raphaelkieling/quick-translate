@@ -102,7 +102,7 @@ describe('markdown', () => {
 
 describe('hint', () => {
   it('changes with the step, the selection and Anki', () => {
-    assert.match(hint({ step: 'pick', selected: -1 }), /↑↓ language +←→ mode/);
+    assert.match(hint({ step: 'pick', selected: -1 }), /↑↓ language +←→ ⇥ mode/);
     assert.match(hint({ step: 'ask', selected: -1 }), /ask/);
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: false }), /copy .* switch mode/);
     assert.match(hint({ step: 'ask', selected: 0, canAddToAnki: true }), /add to Anki/);
@@ -111,8 +111,8 @@ describe('hint', () => {
     assert.match(hint({ step: 'ask', selected: 0, canSpeakText: true }), /⌘↵ listen to text/);
     assert.match(hint({ step: 'ask', selected: -1, canSpeakText: true }), /⌘↵ listen to text/);
     assert.match(hint({ step: 'pick', selected: -1, inHistory: true }), /↵ open/);
-    assert.match(hint({ step: 'pick', selected: -1, atTop: true }), /↑ edit text +↓ language +←→ mode/);
-    assert.match(hint({ step: 'pick', selected: -1, editing: true, atTop: true }), /←→ move +↓ modes/);
+    assert.match(hint({ step: 'pick', selected: -1, atTop: true }), /↑ edit text +↓ language +←→ ⇥ mode/);
+    assert.match(hint({ step: 'pick', selected: -1, editing: true, atTop: true }), /←→ move +↓ modes +⇥ mode/);
   });
 });
 

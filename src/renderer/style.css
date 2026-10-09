@@ -313,7 +313,8 @@ body.launcher::after {
 
 .list li:hover .item-actions,
 .list li.selected .item-actions,
-.item-actions:has(.done) {
+.item-actions:has(.done),
+.item-actions:has(.busy) {
   opacity: 1;
 }
 
@@ -343,6 +344,15 @@ body.launcher::after {
 
 .item-button.done {
   color: var(--success);
+}
+
+.item-button.busy {
+  color: var(--accent);
+  cursor: default;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
 }
 
 #status,

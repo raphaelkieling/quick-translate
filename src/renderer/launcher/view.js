@@ -83,9 +83,9 @@ export function timeAgo(at, now = Date.now()) {
 // `editing`: the arrows move the cursor in the text. `atTop`: on the first language, ↑ goes up to the text.
 export function hint({ step, selected, inHistory, editing, atTop, canAddToAnki, canSpeak, canSpeakText }) {
   if (step === 'pick' && inHistory) return '↑↓ select   ↵ open   esc close';
-  if (step === 'pick' && editing) return '←→ move   ↓ modes   ↵ ask   esc close';
-  if (step === 'pick' && atTop) return '↑ edit text   ↓ language   ←→ mode   ↵ ask   esc close';
-  if (step === 'pick') return '↑↓ language   ←→ mode   ↵ ask   esc close';
+  if (step === 'pick' && editing) return '←→ move   ↓ modes   ⇥ mode   ↵ ask   esc close';
+  if (step === 'pick' && atTop) return '↑ edit text   ↓ language   ←→ ⇥ mode   ↵ ask   esc close';
+  if (step === 'pick') return '↑↓ language   ←→ ⇥ mode   ↵ ask   esc close';
   const listenToText = canSpeakText ? ['⌘↵ listen to text'] : [];
   if (selected < 0) return ['↵ ask', ...listenToText, '⇥ switch mode', '⌫ modes', 'esc close'].join('   ');
   const keys = ['↑↓ select', '↵ copy'];

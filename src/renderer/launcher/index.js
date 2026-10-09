@@ -23,6 +23,8 @@ const ICONS = {
   volume:
     '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>',
   plus: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+  loader:
+    '<svg class="spinner" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>',
 };
 
 const TEXT = 'text';
@@ -42,6 +44,7 @@ let summary = '';
 let items = [];
 let cached = false; // the answer on screen came from the cache
 let added = new Set(); // items already added to Anki
+let adding = new Set(); // items being added to Anki (making the audio takes a few seconds)
 let selected = -1; // highlighted item, -1 for none
 let copied = -1; // item that was just copied
 let speaking = -1; // item being read aloud, or TEXT for the text you typed
@@ -120,9 +123,14 @@ function itemActions(i) {
   const actions = el('div', 'item-actions');
   if (canAddToAnki()) {
     const isAdded = added.has(i);
+    const isAdding = adding.has(i);
+    const icon = isAdded ? ICONS.check : isAdding ? ICONS.loader : ICONS.plus;
     actions.append(
-      itemButton(isAdded ? 'done' : '', isAdded ? `${ICONS.check}Anki` : `${ICONS.plus}Anki`, 'Add to Anki (⇧↵)', () =>
-        addItemToAnki(i),
+      itemButton(
+        isAdded ? 'done' : isAdding ? 'busy' : '',
+        `${icon}Anki`,
+        isAdding ? 'Adding to Anki…' : 'Add to Anki (⇧↵)',
+        () => addItemToAnki(i),
       ),
     );
   }
@@ -282,11 +290,17 @@ function backToModes() {
   render();
 }
 
-function nextMode(offset) {
+// ←→ stay in the language. ⇥ and ⇧⇥ (`acrossLanguages`) go on to the next or the previous language
+// after its last or first mode.
+function nextMode(offset, acrossLanguages = false) {
   pickByHand();
   historySelected = -1;
-  const index = MODE_IDS.indexOf(mode) + offset;
-  mode = MODE_IDS[(index + MODE_IDS.length) % MODE_IDS.length];
+  const list = acrossLanguages ? languages(settings) : [language];
+  const count = list.length * MODE_IDS.length;
+  const index = Math.max(0, list.indexOf(language)) * MODE_IDS.length + MODE_IDS.indexOf(mode) + offset;
+  const cell = (index + count) % count;
+  language = list[Math.floor(cell / MODE_IDS.length)];
+  mode = MODE_IDS[cell % MODE_IDS.length];
   selected = -1; // so Enter asks again in the new mode
   render();
 }
@@ -375,6 +389,7 @@ function showAnswer(text, output, fromCache) {
   items = output.items;
   cached = fromCache;
   added = new Set();
+  adding = new Set();
   selected = items.length ? 0 : -1;
 }
 
@@ -397,9 +412,10 @@ function openHistory(i) {
 }
 
 async function addItemToAnki(i) {
-  if (!canAddToAnki() || added.has(i)) return;
+  if (!canAddToAnki() || added.has(i) || adding.has(i)) return;
   const id = requestId;
   selected = i;
+  adding.add(i);
   render();
 
   const v = secondLanguageVoice();
@@ -409,6 +425,7 @@ async function addItemToAnki(i) {
     v && { name: v.name, lang: v.lang },
   );
   if (id !== requestId) return;
+  adding.delete(i);
   if (result.error) {
     anki = { text: `Anki: ${result.error}`, error: true };
   } else {
@@ -522,13 +539,14 @@ function decideSoon(wait) {
 // Each returns true when it handled the key.
 // While picking, the bare arrows choose the mode: ⌥ and ⌘ arrows still move the cursor in the text.
 // Up in the text (`editing`), they all move the cursor, and ↓ goes back to the modes.
-function onPickKey(key, withModifier) {
+function onPickKey(key, withModifier, shiftKey) {
   if (withModifier && key.startsWith('Arrow')) return false;
-  if (editing && key === 'ArrowDown') setEditing(false);
+  if (key === 'Tab') nextMode(shiftKey ? -1 : 1, true);
+  else if (editing && key === 'ArrowDown') setEditing(false);
   else if (editing && key.startsWith('Arrow')) return false;
   else if (key === 'ArrowDown') moveDown();
   else if (key === 'ArrowUp') moveUp();
-  else if (key === 'ArrowRight' || key === 'Tab') nextMode(1);
+  else if (key === 'ArrowRight') nextMode(1);
   else if (key === 'ArrowLeft') nextMode(-1);
   else if (key === 'Enter' && historySelected >= 0) openHistory(historySelected);
   else if (key === 'Enter') submit();
@@ -537,7 +555,7 @@ function onPickKey(key, withModifier) {
 }
 
 function onAskKey(key, shiftKey, metaKey) {
-  if (key === 'Tab') nextMode(1);
+  if (key === 'Tab') nextMode(shiftKey ? -1 : 1, true);
   else if (key === 'ArrowDown' && items.length) selectItem(selected + 1);
   else if (key === 'ArrowUp' && items.length) selectItem(selected - 1);
   else if (key === 'Enter' && shiftKey && selected >= 0) addItemToAnki(selected);
@@ -554,7 +572,7 @@ document.addEventListener('keydown', (e) => {
   if (e.isComposing) return;
   if (e.key === 'Escape') return window.api.hide();
   const withModifier = e.altKey || e.metaKey || e.ctrlKey || e.shiftKey;
-  const handled = step === 'pick' ? onPickKey(e.key, withModifier) : onAskKey(e.key, e.shiftKey, e.metaKey);
+  const handled = step === 'pick' ? onPickKey(e.key, withModifier, e.shiftKey) : onAskKey(e.key, e.shiftKey, e.metaKey);
   if (handled) e.preventDefault();
 });
 
