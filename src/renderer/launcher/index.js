@@ -15,6 +15,7 @@ import {
   historyPreview,
   languages,
   markdown,
+  partialAnswer,
   timeAgo,
 } from './view.js';
 
@@ -53,6 +54,8 @@ let copied = -1; // item that was just copied
 let speaking = -1; // item being read aloud, or TEXT for the text you typed
 let systemVoices = []; // the text to speech voices installed on the Mac
 let requestId = 0; // used to ignore answers to outdated requests
+let answering = 0; // the request whose answer the AI is still writing (the launcher shows it as it comes)
+let partial = null; // the newest unfinished answer, waiting for the next frame: { id, output }
 let decision = null; // Real Time Mode: { text, result, pending } of the last text sent
 let decideTimer = 0;
 let pickedByHand = false; // choosing a mode yourself turns Real Time Mode off until the text is cleared
@@ -89,6 +92,9 @@ function listItem(text, note, className, onClick, aside, tag = 'li') {
 }
 
 const canAddToAnki = () => settings.ankiEnabled;
+
+// The answer on screen is still being written: its items can't be selected yet.
+const writing = () => answering === requestId;
 
 // The voice of the second language, picked in Settings. It also reads the phrases on the Anki cards.
 const secondLanguageVoice = () => pickVoice(language, systemVoices, settings.voices?.[language]);
@@ -230,6 +236,7 @@ function render() {
   $('summary').innerHTML = markdown(summary);
 
   $('items').hidden = picking || items.length === 0 || Boolean(ankiDraft);
+  $('items').classList.toggle('writing', writing());
   $('items').replaceChildren(
     ...items.map((item, i) => {
       const li = listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
@@ -239,7 +246,8 @@ function render() {
   );
   $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
 
-  $('deciding').hidden = !decision?.pending;
+  $('deciding').hidden = !decision?.pending && !writing();
+  $('deciding').querySelector('title').textContent = writing() ? 'Writing the answer' : 'Real Time Mode';
   $('hint').textContent = hint({
     step,
     selected,
@@ -370,6 +378,7 @@ async function submit() {
   if (!text) return;
 
   const id = ++requestId;
+  answering = id;
   step = 'ask';
   stopItem();
   status = { text: 'Thinking…' };
@@ -389,11 +398,15 @@ async function submit() {
     render();
   }
 
-  const response = await window.api.ask(mode, text, language);
+  answerMode = mode; // the answer shows while it's written: its buttons are for this mode, not the last answer's
+  const response = await window.api.ask(mode, text, language, id);
   if (id !== requestId) return;
+  answering = 0;
 
   if (response.error) {
     status = { text: response.error, error: true };
+    summary = ''; // what came before the error is unfinished
+    items = [];
   } else {
     status = null;
     showAnswer(text, response.output, response.cached);
@@ -401,6 +414,22 @@ async function submit() {
       history = knownModes(list);
     });
   }
+  render();
+}
+
+// The AI sends the answer many times a second while it writes: show the newest one on each frame.
+function onPartial(id, output) {
+  if (id !== requestId) return;
+  if (!partial) requestAnimationFrame(showPartial);
+  partial = { id, output };
+}
+
+function showPartial() {
+  const { id, output } = partial;
+  partial = null;
+  if (id !== requestId || !writing()) return; // the request changed or the complete answer came
+  ({ summary, items } = partialAnswer(output));
+  if (summary || items.length) status = null; // "Thinking…" until the first words
   render();
 }
 
@@ -634,8 +663,8 @@ function onAnkiKey(key, target) {
 
 function onAskKey(key, shiftKey, metaKey) {
   if (key === 'Tab') nextMode(shiftKey ? -1 : 1, true);
-  else if (key === 'ArrowDown' && items.length) selectItem(selected + 1);
-  else if (key === 'ArrowUp' && items.length) selectItem(selected - 1);
+  else if (key === 'ArrowDown' && items.length && !writing()) selectItem(selected + 1);
+  else if (key === 'ArrowUp' && items.length && !writing()) selectItem(selected - 1);
   else if (key === 'Enter' && shiftKey && selected >= 0) openAnkiForm(selected);
   else if (key === 'Enter' && metaKey && textVoice()) speakText();
   else if (key === 'Enter' && metaKey && selected >= 0) speakItem(selected);
@@ -711,6 +740,7 @@ new ResizeObserver(() => {
 }).observe($('app'));
 
 window.api.onShow(reset);
+window.api.onPartial(onPartial);
 loadVoices().then((voices) => {
   systemVoices = voices;
   render();

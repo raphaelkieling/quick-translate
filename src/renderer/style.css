@@ -303,6 +303,11 @@ body.launcher::after {
   color: var(--accent);
 }
 
+/* While the AI writes the answer, its items show but can't be used yet */
+#items.writing {
+  pointer-events: none;
+}
+
 /* Buttons on the right of each answer, visible on hover or when selected */
 .item-actions {
   flex-shrink: 0;

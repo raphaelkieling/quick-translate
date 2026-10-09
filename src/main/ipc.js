@@ -60,11 +60,13 @@ export function registerIpc() {
 
   ipcMain.handle(
     'ai:ask',
-    orError(async (_event, mode, text, language) => {
+    // `id` comes back with each unfinished answer, so the launcher can ignore the ones of an older request.
+    orError(async (event, mode, text, language, id) => {
       const settings = settingsFor(language);
       remember(mode, settings.secondLanguage);
+      const onPartial = (partial) => event.sender.send('ai:partial', id, partial);
       const { value: output, cached } = await withCache(requestKey(mode, text, settings), settings, () =>
-        ask(mode, text, settings),
+        ask(mode, text, settings, onPartial),
       );
       history.add({ mode, language: settings.secondLanguage, text, output });
       return { output, cached };

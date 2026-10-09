@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogle } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
-import { experimental_decide, generateText, Output } from 'ai';
+import { experimental_decide, Output, streamText } from 'ai';
 import { MODES, answerSchema, languageQuestion } from './prompts.js';
 
 // The AI providers you can pick in Settings. Change the model ids here.
@@ -64,13 +64,29 @@ export function buildRequest(modeId, text, settings) {
 export const requestKey = (modeId, text, { provider, mainLanguage, secondLanguage }) =>
   JSON.stringify(['ask', provider, PROVIDERS[provider]?.model, modeId, mainLanguage, secondLanguage, text]);
 
-export async function ask(modeId, text, settings) {
-  const { output } = await generateText({
-    ...buildRequest(modeId, text, settings),
-    abortSignal: AbortSignal.timeout(30_000),
+// Streams the answer: `onPartial` gets it while the AI writes it, so the launcher shows it right away.
+// Those unfinished answers are not checked: fields can be missing or cut in the middle (see partialAnswer
+// in src/renderer/launcher/view.js). It returns the complete answer, checked against the schema.
+// Separate from `ask` so it can be tested with a mock model.
+export async function streamAnswer(request, onPartial) {
+  let error;
+  const result = streamText({
+    ...request,
+    // A failed request only says "No output generated": keep the real reason (a wrong API key...).
+    onError: (event) => {
+      error ??= event.error;
+    },
   });
-  return output;
+  for await (const partial of result.partialOutputStream) onPartial(partial);
+  try {
+    return await result.output;
+  } catch (outputError) {
+    throw error ?? outputError;
+  }
 }
+
+export const ask = (modeId, text, settings, onPartial = () => {}) =>
+  streamAnswer({ ...buildRequest(modeId, text, settings), abortSignal: AbortSignal.timeout(30_000) }, onPartial);
 
 // The same for Real Time Mode: what the decision model gets to find the language of `text`.
 export function buildDecision(text, settings) {

@@ -83,6 +83,23 @@ export const markdown = (text) =>
     .replace(/`(.+?)`/g, '<code>$1</code>')
     .replace(/\n/g, '<br>');
 
+// While the AI writes, a **mark** can still be open: hide it until it closes, so no stray * shows.
+function hideOpenMark(text) {
+  text = text.replace(/(?<!\*)\*$/, ''); // half of a ** still coming
+  return (text.match(/\*\*/g)?.length ?? 0) % 2 ? text.replace(/\*\*(?![\s\S]*\*\*)/, '') : text;
+}
+
+// The answer while the AI writes it (see streamAnswer in src/main/lib/ai.js), ready to show.
+// It isn't checked yet: fields can be missing, of another type, or cut in the middle.
+export function partialAnswer(partial) {
+  const text = (value) => (typeof value === 'string' ? hideOpenMark(value) : '');
+  const items = Array.isArray(partial?.items) ? partial.items : [];
+  return {
+    summary: text(partial?.summary),
+    items: items.map((item) => ({ text: text(item?.text), note: text(item?.note) })).filter((item) => item.text),
+  };
+}
+
 // The line under each history entry: the first phrase, or the tip when there is none.
 export const historyPreview = ({ output }) => output.items[0]?.text || output.summary.split('\n')[0];
 

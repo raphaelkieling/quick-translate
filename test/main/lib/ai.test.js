@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { experimental_decide } from 'ai';
-import { Experimental_DecisionMockModelV4 } from 'ai/test';
+import { experimental_decide, Output } from 'ai';
+import { Experimental_DecisionMockModelV4, MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import {
   PROVIDERS,
   buildDecision,
@@ -10,8 +10,9 @@ import {
   hasApiKey,
   readDecision,
   requestKey,
+  streamAnswer,
 } from '../../../src/main/lib/ai.js';
-import { OTHER_LANGUAGE } from '../../../src/main/lib/prompts.js';
+import { OTHER_LANGUAGE, answerSchema } from '../../../src/main/lib/prompts.js';
 
 const settings = {
   provider: 'openai',
@@ -63,6 +64,49 @@ describe('buildRequest', () => {
       assert.equal(request.providerOptions, provider.providerOptions);
     });
   }
+});
+
+describe('streamAnswer', () => {
+  // A fake model that writes `json` a few characters at a time, like a real one, or fails with `error`.
+  const request = ({ json, error }) => ({
+    model: new MockLanguageModelV4({
+      doStream: async () => {
+        if (error) throw error;
+        const usage = { inputTokens: { total: 1 }, outputTokens: { total: 1 } };
+        return {
+          stream: convertArrayToReadableStream([
+            { type: 'stream-start', warnings: [] },
+            { type: 'text-start', id: '1' },
+            ...json.match(/.{1,5}/g).map((delta) => ({ type: 'text-delta', id: '1', delta })),
+            { type: 'text-end', id: '1' },
+            { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage },
+          ]),
+        };
+      },
+    }),
+    prompt: 'hi',
+    output: Output.object({ schema: answerSchema }),
+    maxRetries: 0,
+  });
+
+  const answer = { summary: 'Two ways to say it.', items: [{ text: 'Hi **there**', note: 'casual' }] };
+
+  it('sends the answer while it is written, then returns the complete one', async () => {
+    const partials = [];
+    const output = await streamAnswer(request({ json: JSON.stringify(answer) }), (partial) => partials.push(partial));
+    assert.deepEqual(output, answer);
+    assert.ok(partials.length > 3);
+    assert.ok(partials.some((partial) => partial.summary && !partial.items)); // the summary comes first
+    assert.deepEqual(partials.at(-1), answer);
+  });
+
+  it('fails with the reason of the error, not just "no output"', async () => {
+    await assert.rejects(streamAnswer(request({ error: new Error('Invalid API key') }), () => {}), /Invalid API key/);
+  });
+
+  it('fails when the complete answer does not match the schema', async () => {
+    await assert.rejects(streamAnswer(request({ json: '{"summary": 3}' }), () => {}), /did not match schema/);
+  });
 });
 
 describe('requestKey', () => {

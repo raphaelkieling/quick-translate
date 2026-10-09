@@ -14,6 +14,7 @@ import {
   historyPreview,
   languages,
   markdown,
+  partialAnswer,
   timeAgo,
 } from '../../src/renderer/launcher/view.js';
 import { MODES as PROMPT_MODES } from '../../src/main/lib/prompts.js';
@@ -129,6 +130,38 @@ describe('markdown', () => {
   it('leaves snake_case and lone asterisks alone', () => {
     assert.equal(markdown('snake_case_name'), 'snake_case_name');
     assert.equal(markdown('2 * 3 * 4'), '2 * 3 * 4');
+  });
+});
+
+describe('partialAnswer', () => {
+  it('shows the items that already have text', () => {
+    assert.deepEqual(partialAnswer({ summary: 'Two ways', items: [{ text: 'Hi', note: 'casual' }, { text: 'Hel' }, {}] }), {
+      summary: 'Two ways',
+      items: [
+        { text: 'Hi', note: 'casual' },
+        { text: 'Hel', note: '' },
+      ],
+    });
+  });
+
+  it('is empty before the first words', () => {
+    assert.deepEqual(partialAnswer({}), { summary: '', items: [] });
+    assert.deepEqual(partialAnswer(undefined), { summary: '', items: [] });
+  });
+
+  it('ignores fields of another type (the answer is not checked yet)', () => {
+    assert.deepEqual(partialAnswer({ summary: 3, items: 'no' }), { summary: '', items: [] });
+    assert.deepEqual(partialAnswer({ items: [null, { text: 1 }] }).items, []);
+  });
+
+  it('hides a mark until it closes', () => {
+    const text = (value) => partialAnswer({ items: [{ text: value }] }).items[0].text;
+    assert.equal(text('Hi **the'), 'Hi the');
+    assert.equal(text('Hi **there*'), 'Hi there');
+    assert.equal(text('Hi **there**'), 'Hi **there**');
+    assert.equal(text('**Hi** and *'), '**Hi** and ');
+    assert.equal(text('**Hi** and **th'), '**Hi** and th');
+    assert.equal(partialAnswer({ summary: 'A **b\nc' }).summary, 'A b\nc');
   });
 });
 
