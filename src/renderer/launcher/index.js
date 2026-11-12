@@ -75,8 +75,7 @@ function el(tag, className, text) {
 }
 
 // The text and the note can have **bold** words (see src/main/lib/prompts.js). Without a note, only the text.
-function listItem(text, note, className, onClick, aside, tag = 'li') {
-  const li = el(tag, className);
+function itemBody(text, note) {
   const body = el('div', 'body');
   const textNode = el('div', 'text');
   textNode.innerHTML = boldToHtml(text);
@@ -86,14 +85,19 @@ function listItem(text, note, className, onClick, aside, tag = 'li') {
     noteNode.innerHTML = boldToHtml(note);
     body.append(noteNode);
   }
-  li.append(body, aside);
+  return body;
+}
+
+function listItem(text, note, className, onClick, aside, tag = 'li') {
+  const li = el(tag, className);
+  li.append(itemBody(text, note), aside);
   li.onclick = onClick;
   return li;
 }
 
 const canAddToAnki = () => settings.ankiEnabled;
 
-// The answer on screen is still being written: its items can't be selected yet.
+// The answer on screen is still being written.
 const writing = () => answering === requestId;
 
 // The voice of the second language, picked in Settings. It also reads the phrases on the Anki cards.
@@ -130,7 +134,7 @@ function speakButton(i) {
 
 function itemActions(i) {
   const actions = el('div', 'item-actions');
-  if (canAddToAnki()) {
+  if (!writing() && canAddToAnki()) {
     const isAdded = added.has(i);
     actions.append(
       itemButton(isAdded ? 'done' : '', isAdded ? `${ICONS.check}Anki` : `${ICONS.plus}Anki`, 'Add to Anki (⇧↵)', () =>
@@ -139,10 +143,33 @@ function itemActions(i) {
     );
   }
   const isCopied = i === copied;
-  actions.append(
-    itemButton(isCopied ? 'done' : '', isCopied ? `${ICONS.check}Copied` : ICONS.copy, 'Copy (↵)', () => copyItem(i)),
-  );
+  const copyTitle = writing() ? 'Copy' : 'Copy (↵)';
+  actions.append(itemButton(isCopied ? 'done' : '', isCopied ? `${ICONS.check}Copied` : ICONS.copy, copyTitle, () => copyItem(i)));
   return actions;
+}
+
+function answerRow(item, i) {
+  const li = listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
+  if (!writing() && voice()) li.prepend(speakButton(i));
+  return li;
+}
+
+function renderItems(picking, updatePartial) {
+  const list = $('items');
+  list.hidden = picking || items.length === 0 || Boolean(ankiDraft);
+  list.classList.toggle('writing', writing());
+  if (updatePartial) {
+    // Keep the copy targets in place between mouse down and mouse up.
+    while (list.children.length > items.length) list.lastElementChild.remove();
+    items.forEach((item, i) => {
+      const row = list.children[i];
+      if (row) row.firstElementChild.replaceWith(itemBody(item.text, item.note));
+      else list.append(answerRow(item, i));
+    });
+  } else {
+    list.replaceChildren(...items.map(answerRow));
+  }
+  list.children[selected]?.scrollIntoView({ block: 'nearest' });
 }
 
 // A row for each second language, with its modes side by side.
@@ -207,7 +234,7 @@ function renderAnkiForm() {
   submit.innerHTML = ankiDraft.adding ? `${ICONS.loader}Adding…` : `Add ${count} card${count === 1 ? '' : 's'}`;
 }
 
-function render() {
+function render({ updatePartial = false } = {}) {
   const picking = step === 'pick';
   const languageSettings = forLanguage(settings, language);
 
@@ -235,16 +262,7 @@ function render() {
   $('summary').hidden = picking || !summary || Boolean(ankiDraft);
   $('summary').innerHTML = markdown(summary);
 
-  $('items').hidden = picking || items.length === 0 || Boolean(ankiDraft);
-  $('items').classList.toggle('writing', writing());
-  $('items').replaceChildren(
-    ...items.map((item, i) => {
-      const li = listItem(item.text, item.note, i === selected ? 'selected' : '', () => copyItem(i), itemActions(i));
-      if (voice()) li.prepend(speakButton(i));
-      return li;
-    }),
-  );
-  $('items').children[selected]?.scrollIntoView({ block: 'nearest' });
+  renderItems(picking, updatePartial);
 
   $('deciding').hidden = !decision?.pending && !writing();
   $('deciding').querySelector('title').textContent = writing() ? 'Writing the answer' : 'Real Time Mode';
@@ -430,7 +448,7 @@ function showPartial() {
   if (id !== requestId || !writing()) return; // the request changed or the complete answer came
   ({ summary, items } = partialAnswer(output));
   if (summary || items.length) status = null; // "Thinking…" until the first words
-  render();
+  render({ updatePartial: true });
 }
 
 function showAnswer(text, output, fromCache) {
@@ -573,7 +591,7 @@ function speakText() {
 
 function copyItem(i) {
   window.api.copy(stripBold(items[i].text));
-  selected = i;
+  if (!writing()) selected = i;
   copied = i;
   render();
   setTimeout(() => {

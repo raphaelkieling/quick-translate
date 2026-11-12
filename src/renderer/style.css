@@ -303,12 +303,7 @@ body.launcher::after {
   color: var(--accent);
 }
 
-/* While the AI writes the answer, its items show but can't be used yet */
-#items.writing {
-  pointer-events: none;
-}
-
-/* Buttons on the right of each answer, visible on hover or when selected */
+/* Buttons on the right of each answer */
 .item-actions {
   flex-shrink: 0;
   display: flex;
@@ -318,6 +313,7 @@ body.launcher::after {
 
 .list li:hover .item-actions,
 .list li.selected .item-actions,
+#items.writing .item-actions,
 .item-actions:has(.done) {
   opacity: 1;
 }
